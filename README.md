@@ -16,20 +16,7 @@ _Blazingly fast session switching with fuzzy finding, live previews, and seamles
 
 ## 📸 Demo
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  ▼ main (3)                                          [Preview]  │
-│  ↳ nvim    ~/projects/tmux-sessions          [tmux] session     │
-│  ↳ server  ~/projects/tmux-sessions/src/bin  [running]          │
-│  ↳ test    ~/projects/tmux-sessions/tests                       │
-│  ▼ work (2)                                                     │
-│  ↳ frontend ~/work/frontend                                     │
-│  📁 ~/work/backend                                              │
-│  📁 ~/dotfiles                                                  │
-│                                                                 │
-│  Filter: /nvim                              12 items, 3 sessions│
-└─────────────────────────────────────────────────────────────────┘
-```
+[![BAvbFPs.png](https://iili.io/BAvbFPs.png)](https://freeimage.host/i/BAvbFPs)
 
 **Features at a glance:**
 
