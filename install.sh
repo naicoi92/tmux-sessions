@@ -48,8 +48,6 @@ get_default_install_dir() {
     esac
 }
 
-INSTALL_DIR=$(get_default_install_dir)
-
 # Print functions using printf for POSIX compatibility
 print_info() {
     printf "${BLUE}%s${NC} %s\n" "ℹ" "$1"
@@ -352,6 +350,8 @@ parse_args() {
 
 # Main entry point
 main() {
+    INSTALL_DIR=$(get_default_install_dir)
+
     # Parse arguments
     parse_args "$@"
     
