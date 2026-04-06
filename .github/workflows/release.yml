@@ -1,0 +1,281 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+*"
+
+permissions:
+  contents: write
+
+env:
+  CARGO_INCREMENTAL: 0
+  CARGO_NET_RETRY: 10
+  RUST_BACKTRACE: short
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: aarch64-apple-darwin
+            os: macos-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Validate and update version
+        id: version
+        run: |
+          set -euo pipefail
+
+          # Validate tag format (vX.Y.Z or vX.Y.Z-prerelease)
+          if [[ ! "${GITHUB_REF_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?$ ]]; then
+            echo "❌ Invalid tag format: ${GITHUB_REF_NAME}"
+            echo "Expected format: vX.Y.Z or vX.Y.Z-prerelease"
+            exit 1
+          fi
+
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "📦 Building version: ${VERSION}"
+
+          # Update Cargo.toml with validation
+          if [[ ! -f Cargo.toml ]]; then
+            echo "❌ Cargo.toml not found"
+            exit 1
+          fi
+
+          sed -i.bak "s/^version = \"[^\"]*\"/version = \"${VERSION}\"/" Cargo.toml
+          rm -f Cargo.toml.bak
+
+          # Verify the change
+          NEW_VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "//;s/"//')
+          if [[ "${NEW_VERSION}" != "${VERSION}" ]]; then
+            echo "❌ Failed to update version in Cargo.toml"
+            exit 1
+          fi
+
+          cargo update -p tmux-sessions
+
+      - name: Cache cargo dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Build binary
+        uses: houseabsolute/actions-rust-cross@v1
+        with:
+          command: build
+          target: ${{ matrix.target }}
+          args: "--locked --release"
+          strip: true
+
+      - name: Prepare artifact
+        run: |
+          set -euo pipefail
+
+          mkdir -p dist
+
+          BINARY_NAME="tmux-sessions-${{ matrix.target }}"
+          SOURCE="target/${{ matrix.target }}/release/tmux-sessions"
+          DEST="dist/${BINARY_NAME}"
+
+          if [[ ! -f "${SOURCE}" ]]; then
+            echo "❌ Binary not found: ${SOURCE}"
+            exit 1
+          fi
+
+          cp "${SOURCE}" "${DEST}"
+
+          # Generate checksum
+          if command -v sha256sum > /dev/null 2>&1; then
+            sha256sum "${DEST}" > "${DEST}.sha256"
+          else
+            shasum -a 256 "${DEST}" > "${DEST}.sha256"
+          fi
+
+          echo "✅ Artifact prepared: ${BINARY_NAME}"
+          echo "📊 Size: $(du -h "${DEST}" | cut -f1)"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: tmux-sessions-${{ matrix.target }}
+          path: dist/*
+          retention-days: 3
+          if-no-files-found: error
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Download binaries
+        uses: actions/download-artifact@v8
+        with:
+          path: dist/
+          pattern: tmux-sessions-*
+          merge-multiple: true
+
+      - name: Validate artifacts
+        run: |
+          set -euo pipefail
+
+          if [[ ! -d dist/ ]]; then
+            echo "❌ dist/ directory not found"
+            exit 1
+          fi
+
+          # Count artifacts (expecting 4 binaries + 4 checksums)
+          BINARY_COUNT=$(find dist/ -name 'tmux-sessions-*' ! -name '*.sha256' | wc -l)
+          CHECKSUM_COUNT=$(find dist/ -name '*.sha256' | wc -l)
+
+          echo "📦 Found ${BINARY_COUNT} binaries and ${CHECKSUM_COUNT} checksums"
+
+          if [[ ${BINARY_COUNT} -eq 0 ]]; then
+            echo "❌ No binaries found in dist/"
+            ls -la dist/
+            exit 1
+          fi
+
+          # Validate checksums
+          for checksum in dist/*.sha256; do
+            if [[ -f "${checksum}" ]]; then
+              echo "🔐 Verifying: ${checksum}"
+              if ! sha256sum -c "${checksum}" --quiet; then
+                echo "❌ Checksum verification failed for ${checksum}"
+                exit 1
+              fi
+            fi
+          done
+
+          # Remove checksum files before upload
+          rm -f dist/*.sha256
+          echo "✅ All artifacts validated, checksum files removed"
+
+      - name: Get previous release tag
+        id: get_prev_tag
+        run: |
+          set -euo pipefail
+
+          # Try to get the latest non-prerelease release
+          LATEST_TAG=$(gh release list \
+            --repo "${{ github.repository }}" \
+            --limit 50 \
+            --json tagName,isPrerelease \
+            --jq '[.[] | select(.isPrerelease == false)] | first | .tagName' \
+            2>/dev/null || true)
+
+          if [[ -z "${LATEST_TAG}" ]]; then
+            echo "ℹ️ No previous releases found, using default v0.0.0"
+            echo "prev_ref=v0.0.0" >> $GITHUB_OUTPUT
+          else
+            echo "✅ Found previous release: ${LATEST_TAG}"
+            echo "prev_ref=${LATEST_TAG}" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate Release Notes with LLM
+        id: llm_notes
+        uses: nosovj/llm-release-action@v1
+        with:
+          model: openai/${{ secrets.OPENAI_MODEL }}
+          current_version: ${{ steps.get_prev_tag.outputs.prev_ref }}
+          head_ref: ${{ github.ref_name }}
+          analyze_diffs: true
+          changelog_config: |
+            developer:
+              preset: developer
+              include_commits: true
+              include_contributors: true
+              generate_title: false
+              emojis: true
+              output_format: "markdown"
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+
+      - name: Detect prerelease
+        id: detect_prerelease
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.ref_name }}" == *-* ]]; then
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+            echo "🏷️ Detected prerelease tag: ${{ github.ref_name }}"
+          else
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+            echo "🏷️ Detected stable release tag: ${{ github.ref_name }}"
+          fi
+
+      - name: Get Developer Changelog
+        id: changelogs
+        env:
+          LLM_OUTPUT: ${{ steps.llm_notes.outputs.changelogs }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          USE_LLM_CHANGELOG="false"
+          CHANGELOG=""
+
+          # Validate LLM output exists
+          if [[ -n "${LLM_OUTPUT}" ]]; then
+            # Extract changelog with error handling
+            if CHANGELOG=$(echo "${LLM_OUTPUT}" | jq -r '.developer.en // empty' 2>/dev/null); then
+              if [[ -n "${CHANGELOG}" ]]; then
+                USE_LLM_CHANGELOG="true"
+                echo "✅ Successfully extracted LLM changelog"
+              fi
+            fi
+          fi
+
+          # Output flags
+          echo "use_llm=${USE_LLM_CHANGELOG}" >> $GITHUB_OUTPUT
+
+          # Output multiline string (only if we have LLM changelog)
+          if [[ "${USE_LLM_CHANGELOG}" == "true" ]]; then
+            {
+              echo "changelog<<EOF"
+              echo "${CHANGELOG}"
+              echo "EOF"
+            } >> $GITHUB_OUTPUT
+            echo "✅ Changelog prepared ($(wc -c <<< "${CHANGELOG}") bytes)"
+          else
+            echo "⚠️ No valid LLM changelog, will use GitHub auto-generated notes"
+          fi
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/tmux-sessions-*
+          body: ${{ steps.changelogs.outputs.use_llm == 'true' && steps.changelogs.outputs.changelog || '' }}
+          generate_release_notes: ${{ steps.changelogs.outputs.use_llm != 'true' }}
+          prerelease: ${{ steps.detect_prerelease.outputs.is_prerelease == 'true' }}
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,23 @@
+[package]
+name = "tmux-sessions"
+version = "0.9.0"
+edition = "2021"
+description = "TUI popup manager for tmux sessions and zoxide directories"
+autobins = false
+
+[[bin]]
+name = "tmux-sessions"
+path = "src/main.rs"
+
+[dependencies]
+ratatui = "0.30.0"
+crossterm = "0.29.0"
+ansi-to-tui = "8.0.1"
+nucleo = "0.5.0"
+lscolors = { version = "0.21.0", features = ["nu-ansi-term"] }
+humansize = "2.1.3"
+chrono = "0.4.44"
+nu-ansi-term = "0.50.3"
+devicons = "0.6.12"
+
+[dev-dependencies]
