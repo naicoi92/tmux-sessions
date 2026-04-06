@@ -190,13 +190,11 @@ jobs:
             2>/dev/null || true)
 
           if [[ -z "${LATEST_TAG}" ]]; then
-            echo "ℹ️ No previous releases found, using first commit as base"
-            # Get the first commit hash of the repository
-            FIRST_COMMIT=$(git rev-list --max-parents=0 HEAD 2>/dev/null || git log --reverse --pretty=format:"%H" | head -1)
-            echo "✅ Using first commit as base: ${FIRST_COMMIT}"
-            echo "prev_ref=${FIRST_COMMIT}" >> $GITHUB_OUTPUT
+            echo "ℹ️ No previous releases found"
+            echo "has_prev_release=false" >> $GITHUB_OUTPUT
           else
             echo "✅ Found previous release: ${LATEST_TAG}"
+            echo "has_prev_release=true" >> $GITHUB_OUTPUT
             echo "prev_ref=${LATEST_TAG}" >> $GITHUB_OUTPUT
           fi
         env:
@@ -204,6 +202,7 @@ jobs:
 
       - name: Generate Release Notes with LLM
         id: llm_notes
+        if: steps.get_prev_tag.outputs.has_prev_release == 'true'
         uses: nosovj/llm-release-action@v1
         with:
           model: openai/${{ secrets.OPENAI_MODEL }}
