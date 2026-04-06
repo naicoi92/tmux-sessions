@@ -139,14 +139,14 @@ tmux source-file ~/.tmux.conf
 
 ### Key Bindings
 
-| Key                 | Action                       |
-| ------------------- | ---------------------------- |
-| `↑/↓` or `Ctrl+j/k` | Navigate items               |
-| `Ctrl+p`            | Toggle preview panel         |
-| `Ctrl+r`            | Reload snapshot              |
-| `Ctrl+d`            | Kill selected window/session |
-| `Enter`             | Switch to selected item      |
-| `Esc` or `q`        | Quit                         |
+| Key          | Action                       |
+| ------------ | ---------------------------- |
+| `↑/↓`        | Navigate items               |
+| `Ctrl+o`     | Toggle preview panel         |
+| `Ctrl+d`     | Kill selected window/session |
+| `Ctrl+r`     | Reload snapshot              |
+| `Enter`      | Switch to selected item      |
+| `Esc`        | Quit                         |
 
 ---
 
