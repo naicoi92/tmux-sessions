@@ -74,4 +74,83 @@ mod tests {
         assert_eq!(result[1].window_activity, Some(1714000100));
         assert_eq!(result[2].window_activity, None);
     }
+
+    #[test]
+    fn parse_windows_negative_activity_accepted() {
+        let input = "s1\t0\tmain\t/home/user\t-1";
+        let result = parse_windows(input).unwrap();
+        assert_eq!(result[0].window_activity, Some(-1));
+    }
+
+    #[test]
+    fn parse_windows_zero_activity_accepted() {
+        let input = "s1\t0\tmain\t/home/user\t0";
+        let result = parse_windows(input).unwrap();
+        assert_eq!(result[0].window_activity, Some(0));
+    }
+
+    #[test]
+    fn parse_windows_large_timestamp_accepted() {
+        let input = "s1\t0\tmain\t/home/user\t9999999999999";
+        let result = parse_windows(input).unwrap();
+        assert_eq!(result[0].window_activity, Some(9999999999999));
+    }
+
+    #[test]
+    fn parse_windows_all_empty_activity() {
+        let input = "s1\t0\tmain\t/home/user\t\ns2\t1\tother\t/tmp\t";
+        let result = parse_windows(input).unwrap();
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].window_activity, None);
+        assert_eq!(result[1].window_activity, None);
+    }
+
+    #[test]
+    fn parse_windows_single_line_valid() {
+        let input = "s1\t0\tmain\t/home/user\t1714000000";
+        let result = parse_windows(input).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].window_activity, Some(1714000000));
+    }
+
+    #[test]
+    fn parse_windows_whitespace_only_activity_becomes_none() {
+        let input = "s1\t0\tmain\t/home/user\t   ";
+        let result = parse_windows(input).unwrap();
+        assert_eq!(result[0].window_activity, None);
+    }
+
+    #[test]
+    fn parse_windows_float_activity_becomes_none() {
+        let input = "s1\t0\tmain\t/home/user\t1714000.5";
+        let result = parse_windows(input).unwrap();
+        assert_eq!(result[0].window_activity, None);
+    }
+
+    #[test]
+    fn parse_windows_missing_field_errors() {
+        let input = "s1\t0\tmain\t/home/user";
+        let result = parse_windows(input);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_windows_too_many_fields_errors() {
+        let input = "s1\t0\tmain\t/home/user\t1714000000\textra";
+        let result = parse_windows(input);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_windows_empty_input() {
+        let result = parse_windows("").unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn parse_windows_whitespace_only_lines_skipped() {
+        let input = "s1\t0\tmain\t/home/user\t100\n   \ns2\t1\tother\t/tmp\t200";
+        let result = parse_windows(input).unwrap();
+        assert_eq!(result.len(), 2);
+    }
 }

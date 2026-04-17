@@ -346,4 +346,104 @@ mod tests {
             vec!["s1:0", "s3:0", "s3:1", "s2:1", "s2:0", "s4:0"]
         );
     }
+
+    #[test]
+    fn sort_all_none_activity_preserves_input_order() {
+        let tmux = vec![
+            make_window_with_activity("s1", "0", "current", true, None),
+            make_window_with_activity("s2", "1", "other-b", false, None),
+            make_window_with_activity("s3", "2", "other-c", false, None),
+            make_window_with_activity("s2", "0", "other-a", false, None),
+        ];
+
+        let board = build_sorted_board("s1", "0", tmux, vec![]);
+        let targets: Vec<&str> = board.iter().map(|e| e.target.as_str()).collect();
+
+        // s1:0 first (current window), then sessions grouped together (s2 before s3 in input)
+        assert_eq!(targets, vec!["s1:0", "s2:1", "s2:0", "s3:2"]);
+    }
+
+    #[test]
+    fn sort_single_session_mru_within_current_session() {
+        // Only current session, no other sessions — MRU should order windows within it
+        let tmux = vec![
+            make_window_with_activity("s1", "2", "oldest", false, Some(10)),
+            make_window_with_activity("s1", "0", "current", true, Some(100)),
+            make_window_with_activity("s1", "3", "middle", false, Some(50)),
+            make_window_with_activity("s1", "1", "none-win", false, None),
+        ];
+
+        let board = build_sorted_board("s1", "0", tmux, vec![]);
+        let targets: Vec<&str> = board.iter().map(|e| e.target.as_str()).collect();
+
+        // Current first, then MRU: s1:3(50), s1:2(10), s1:1(None)
+        assert_eq!(targets, vec!["s1:0", "s1:3", "s1:2", "s1:1"]);
+    }
+
+    #[test]
+    fn sort_equal_session_max_uses_first_index_breaker() {
+        // Two sessions with same max activity — should order by first appearance index
+        let tmux = vec![
+            make_window_with_activity("s1", "0", "current", true, Some(999)),
+            make_window_with_activity("s2", "0", "s2-a", false, Some(50)),
+            make_window_with_activity("s3", "0", "s3-a", false, Some(50)),
+            make_window_with_activity("s2", "1", "s2-b", false, Some(30)),
+            make_window_with_activity("s3", "1", "s3-b", false, Some(20)),
+        ];
+
+        let board = build_sorted_board("s1", "0", tmux, vec![]);
+        let targets: Vec<&str> = board.iter().map(|e| e.target.as_str()).collect();
+
+        // s2 appears before s3 in input, so s2 wins on equal session max
+        assert_eq!(targets, vec!["s1:0", "s2:0", "s2:1", "s3:0", "s3:1"]);
+    }
+
+    #[test]
+    fn sort_mixed_none_and_some_in_same_session() {
+        let tmux = vec![
+            make_window_with_activity("s1", "0", "current", true, Some(100)),
+            make_window_with_activity("s1", "4", "none-b", false, None),
+            make_window_with_activity("s1", "2", "has-20", false, Some(20)),
+            make_window_with_activity("s1", "3", "none-a", false, None),
+            make_window_with_activity("s1", "1", "has-50", false, Some(50)),
+        ];
+
+        let board = build_sorted_board("s1", "0", tmux, vec![]);
+        let targets: Vec<&str> = board.iter().map(|e| e.target.as_str()).collect();
+
+        // Some before None within same session; ties preserve input order
+        assert_eq!(targets, vec!["s1:0", "s1:1", "s1:2", "s1:4", "s1:3"]);
+    }
+
+    #[test]
+    fn sort_equal_timestamps_stable_within_session() {
+        // All windows in current session have same timestamp — stable sort preserves order
+        let tmux = vec![
+            make_window_with_activity("s1", "0", "current", true, Some(100)),
+            make_window_with_activity("s1", "1", "w1", false, Some(100)),
+            make_window_with_activity("s1", "2", "w2", false, Some(100)),
+            make_window_with_activity("s1", "3", "w3", false, Some(100)),
+        ];
+
+        let board = build_sorted_board("s1", "0", tmux, vec![]);
+        let targets: Vec<&str> = board.iter().map(|e| e.target.as_str()).collect();
+
+        assert_eq!(targets, vec!["s1:0", "s1:1", "s1:2", "s1:3"]);
+    }
+
+    #[test]
+    fn sort_other_session_window_with_none_vs_session_with_some() {
+        // Session with Some activity should rank above session with all None
+        let tmux = vec![
+            make_window_with_activity("s1", "0", "current", true, Some(999)),
+            make_window_with_activity("s4", "0", "all-none", false, None),
+            make_window_with_activity("s2", "0", "has-activity", false, Some(50)),
+        ];
+
+        let board = build_sorted_board("s1", "0", tmux, vec![]);
+        let targets: Vec<&str> = board.iter().map(|e| e.target.as_str()).collect();
+
+        // s2 has activity (50) so it ranks above s4 (all None)
+        assert_eq!(targets, vec!["s1:0", "s2:0", "s4:0"]);
+    }
 }

@@ -92,4 +92,28 @@ mod tests {
         assert_eq!(entries[1].window_activity, None);
         assert_eq!(entries[2].window_activity, Some(1713000000));
     }
+
+    #[test]
+    fn map_raw_windows_all_none_activity() {
+        let raw = vec![
+            RawWindow {
+                session_name: "s1".into(),
+                window_index: "0".into(),
+                window_name: "a".into(),
+                window_path: "/a".into(),
+                window_activity: None,
+            },
+            RawWindow {
+                session_name: "s1".into(),
+                window_index: "1".into(),
+                window_name: "b".into(),
+                window_path: "/b".into(),
+                window_activity: None,
+            },
+        ];
+
+        let entries = map_raw_windows_to_entries(raw, "s1", "0");
+
+        assert!(entries.iter().all(|e| e.window_activity.is_none()));
+    }
 }
