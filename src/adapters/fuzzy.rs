@@ -72,7 +72,15 @@ mod tests {
     use crate::domain::entry::SortPriority;
 
     fn make_window(name: &str) -> Entry {
-        Entry::window("test".into(), "0".into(), name.into(), "/path".into(), SortPriority::OtherSessionWindow, false, None)
+        Entry::window(
+            "test".into(),
+            "0".into(),
+            name.into(),
+            "/path".into(),
+            SortPriority::OtherSessionWindow,
+            false,
+            None,
+        )
     }
 
     #[test]
@@ -131,7 +139,15 @@ mod tests {
     #[test]
     fn indices_match_display_char_positions() {
         let matcher = NucleoMatcher::new();
-        let entry = Entry::window("mysession".into(), "0".into(), "main".into(), "/path".into(), SortPriority::OtherSessionWindow, false, None);
+        let entry = Entry::window(
+            "mysession".into(),
+            "0".into(),
+            "main".into(),
+            "/path".into(),
+            SortPriority::OtherSessionWindow,
+            false,
+            None,
+        );
 
         let results = matcher.match_entries("main", std::slice::from_ref(&entry));
 

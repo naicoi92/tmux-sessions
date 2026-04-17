@@ -244,7 +244,15 @@ fn snapshot_from_board() {
 
 #[test]
 fn action_goto_for_window_entry() {
-    let entry = Entry::window("s1".into(), "0".into(), "main".into(), "/path".into(), SortPriority::CurrentWindow, true, None);
+    let entry = Entry::window(
+        "s1".into(),
+        "0".into(),
+        "main".into(),
+        "/path".into(),
+        SortPriority::CurrentWindow,
+        true,
+        None,
+    );
     let action = Action::goto_window(entry.target.clone(), entry.path.clone());
     assert_eq!(action.entry_type(), EntryType::Window);
 }
@@ -313,7 +321,7 @@ fn existing_item_enter_switches_correct_target() {
                 "/work/editor".into(),
                 SortPriority::OtherSessionWindow,
                 false,
-            None,
+                None,
             ),
             Entry::zoxide("project".into(), "/work/project".into()),
         ],
@@ -353,7 +361,7 @@ fn zoxide_enter_creates_single_session_then_switches() {
                 "/work/editor".into(),
                 SortPriority::OtherSessionWindow,
                 false,
-            None,
+                None,
             ),
             Entry::zoxide("project".into(), "/work/project".into()),
         ],
@@ -397,7 +405,7 @@ fn grouped_existing_switch_flow_resolves_actionable_child_target() {
                 "/work/team".into(),
                 SortPriority::OtherSessionWindow,
                 false,
-            None,
+                None,
             ),
             Entry::window(
                 "team".into(),
@@ -406,7 +414,7 @@ fn grouped_existing_switch_flow_resolves_actionable_child_target() {
                 "/work/team".into(),
                 SortPriority::OtherSessionWindow,
                 false,
-            None,
+                None,
             ),
             Entry::zoxide("project".into(), "/work/project".into()),
         ],
@@ -488,7 +496,7 @@ fn grouped_rows_keep_header_non_actionable_and_selection_actionable() {
                 "/grouped".into(),
                 SortPriority::OtherSessionWindow,
                 false,
-            None,
+                None,
             ),
             Entry::window(
                 "grouped".into(),
@@ -497,7 +505,7 @@ fn grouped_rows_keep_header_non_actionable_and_selection_actionable() {
                 "/grouped".into(),
                 SortPriority::OtherSessionWindow,
                 false,
-            None,
+                None,
             ),
             Entry::zoxide("z".into(), "/z".into()),
         ],
@@ -523,8 +531,24 @@ fn rapid_preview_requests_keep_latest_target_content() {
     });
     let mut loader = AsyncPreviewLoader::new(generator);
 
-    let first = Entry::window("first".into(), "0".into(), "main".into(), "/tmp".into(), SortPriority::OtherSessionWindow, false, None);
-    let second = Entry::window("second".into(), "0".into(), "main".into(), "/tmp".into(), SortPriority::OtherSessionWindow, false, None);
+    let first = Entry::window(
+        "first".into(),
+        "0".into(),
+        "main".into(),
+        "/tmp".into(),
+        SortPriority::OtherSessionWindow,
+        false,
+        None,
+    );
+    let second = Entry::window(
+        "second".into(),
+        "0".into(),
+        "main".into(),
+        "/tmp".into(),
+        SortPriority::OtherSessionWindow,
+        false,
+        None,
+    );
 
     loader.request(&first, None);
     loader.request(&second, None);
@@ -557,7 +581,7 @@ fn existing_switch_flow_surfaces_tmux_select_error() {
             "/work/editor".into(),
             SortPriority::OtherSessionWindow,
             false,
-        None,
+            None,
         )],
         "s1".into(),
         "s1:0".into(),

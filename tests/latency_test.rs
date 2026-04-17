@@ -85,7 +85,15 @@ fn filtered_entries_fast_on_snapshot() {
 
     let entries: Vec<Entry> = (0..100)
         .map(|i| {
-            Entry::window(format!("s{}", i % 5), format!("{i}"), format!("window-{i}"), format!("/path/{i}"), SortPriority::OtherSessionWindow, false, None)
+            Entry::window(
+                format!("s{}", i % 5),
+                format!("{i}"),
+                format!("window-{i}"),
+                format!("/path/{i}"),
+                SortPriority::OtherSessionWindow,
+                false,
+                None,
+            )
         })
         .collect();
     let snap = Snapshot::new(entries, "s0".into(), "s0:0".into());

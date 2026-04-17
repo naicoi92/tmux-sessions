@@ -38,7 +38,15 @@ mod tests {
     use crate::domain::entry::SortPriority;
 
     fn dummy_entry() -> Entry {
-        Entry::window("s".into(), "0".into(), "a".into(), "/".into(), SortPriority::CurrentWindow, true, None)
+        Entry::window(
+            "s".into(),
+            "0".into(),
+            "a".into(),
+            "/".into(),
+            SortPriority::CurrentWindow,
+            true,
+            None,
+        )
     }
 
     #[test]

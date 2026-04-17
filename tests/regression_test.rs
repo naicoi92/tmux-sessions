@@ -9,7 +9,15 @@ fn make_snap(entries: Vec<Entry>) -> Snapshot {
 }
 
 fn e_win(session: &str, index: &str, name: &str) -> Entry {
-    Entry::window(session.into(), index.into(), name.into(), "/p".into(), SortPriority::OtherSessionWindow, false, None)
+    Entry::window(
+        session.into(),
+        index.into(),
+        name.into(),
+        "/p".into(),
+        SortPriority::OtherSessionWindow,
+        false,
+        None,
+    )
 }
 
 // =====================================================================
@@ -233,7 +241,15 @@ fn selection_clamp_after_snapshot_shrink() {
 
 #[test]
 fn entry_with_spaces_in_window_name() {
-    let entry = Entry::window("my session".into(), "0".into(), "my window name".into(), "/path with spaces".into(), SortPriority::CurrentWindow, true, None);
+    let entry = Entry::window(
+        "my session".into(),
+        "0".into(),
+        "my window name".into(),
+        "/path with spaces".into(),
+        SortPriority::CurrentWindow,
+        true,
+        None,
+    );
     assert_eq!(entry.target, "my session:0");
     assert_eq!(entry.path, "/path with spaces");
     assert!(entry.display.contains("my window name"));
@@ -282,7 +298,7 @@ fn filter_with_spaces_in_window_name_works() {
             "/".into(),
             SortPriority::OtherSessionWindow,
             false,
-        None,
+            None,
         ),
         Entry::window(
             "s".into(),
@@ -291,7 +307,7 @@ fn filter_with_spaces_in_window_name_works() {
             "/".into(),
             SortPriority::OtherSessionWindow,
             false,
-        None,
+            None,
         ),
     ]));
     assert_eq!(state.filtered_entries().len(), 2);
@@ -341,7 +357,7 @@ fn reload_like_snapshot_replace_preserves_selected_target() {
                 "/p".into(),
                 SortPriority::OtherSessionWindow,
                 false,
-            None,
+                None,
             ),
             Entry::window(
                 "s2".into(),
@@ -350,7 +366,7 @@ fn reload_like_snapshot_replace_preserves_selected_target() {
                 "/p".into(),
                 SortPriority::OtherSessionWindow,
                 false,
-            None,
+                None,
             ),
             Entry::window(
                 "s1".into(),
@@ -359,7 +375,7 @@ fn reload_like_snapshot_replace_preserves_selected_target() {
                 "/p".into(),
                 SortPriority::OtherSessionWindow,
                 false,
-            None,
+                None,
             ),
         ],
         "s1".into(),
@@ -376,8 +392,24 @@ fn reload_like_snapshot_replace_preserves_selected_target() {
 
 #[test]
 fn entry_equality_same_target_different_priority() {
-    let a = Entry::window("s".into(), "0".into(), "main".into(), "/".into(), SortPriority::CurrentWindow, true, None);
-    let b = Entry::window("s".into(), "0".into(), "main".into(), "/other".into(), SortPriority::OtherSessionWindow, false, None);
+    let a = Entry::window(
+        "s".into(),
+        "0".into(),
+        "main".into(),
+        "/".into(),
+        SortPriority::CurrentWindow,
+        true,
+        None,
+    );
+    let b = Entry::window(
+        "s".into(),
+        "0".into(),
+        "main".into(),
+        "/other".into(),
+        SortPriority::OtherSessionWindow,
+        false,
+        None,
+    );
     assert_eq!(a, b);
 }
 

@@ -246,7 +246,15 @@ mod tests {
 
     #[test]
     fn highlight_indices_adjusted_correctly() {
-        let mut entry = Entry::window("test".into(), "0".into(), "alpha".into(), "/path".into(), SortPriority::OtherSessionWindow, false, None);
+        let mut entry = Entry::window(
+            "test".into(),
+            "0".into(),
+            "alpha".into(),
+            "/path".into(),
+            SortPriority::OtherSessionWindow,
+            false,
+            None,
+        );
         entry.matched_indices = vec![10, 11, 12, 13, 14];
 
         let base_style = Style::default();
