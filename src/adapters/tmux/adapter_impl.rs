@@ -28,7 +28,7 @@ impl TmuxSource for TmuxAdapter {
     }
 
     fn list_sessions(&self) -> Result<Vec<RawSession>, AdapterError> {
-        let fmt = "#{session_name}\t#{session_attached}";
+        let fmt = "#{session_name}\t#{session_attached}\t#{session_activity}";
         let output = run_tmux(&["list-sessions", "-F", fmt])?;
         parse_sessions(&output)
     }

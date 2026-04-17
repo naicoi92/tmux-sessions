@@ -35,15 +35,21 @@ pub fn parse_sessions(output: &str) -> Result<Vec<RawSession>, AdapterError> {
         .filter(|line| !line.trim().is_empty())
         .map(|line| {
             let parts: Vec<&str> = line.split('\t').collect();
-            if parts.len() != 2 {
+            if parts.len() != 3 {
                 return Err(AdapterError::TmuxParse {
                     input: line.to_string(),
-                    detail: format!("expected 2 tab-separated fields, got {}", parts.len()),
+                    detail: format!("expected 3 tab-separated fields, got {}", parts.len()),
                 });
             }
+            let session_activity = if parts[2].is_empty() {
+                None
+            } else {
+                parts[2].parse::<i64>().ok()
+            };
             Ok(RawSession {
                 session_name: parts[0].to_string(),
                 attached: parts[1] == "1",
+                session_activity,
             })
         })
         .collect()
@@ -52,6 +58,36 @@ pub fn parse_sessions(output: &str) -> Result<Vec<RawSession>, AdapterError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parse_sessions_accepts_session_activity_field() {
+        let input = "s1\t1\t1714000000\ns2\t0\t1714000100";
+        let result = parse_sessions(input).unwrap();
+
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].session_name, "s1");
+        assert!(result[0].attached);
+        assert_eq!(result[0].session_activity, Some(1714000000));
+        assert_eq!(result[1].session_activity, Some(1714000100));
+    }
+
+    #[test]
+    fn parse_sessions_invalid_or_empty_activity_becomes_none() {
+        let input = "s1\t1\t\ns2\t0\tabc\ns3\t1\t0";
+        let result = parse_sessions(input).unwrap();
+
+        assert_eq!(result.len(), 3);
+        assert_eq!(result[0].session_activity, None);
+        assert_eq!(result[1].session_activity, None);
+        assert_eq!(result[2].session_activity, Some(0));
+    }
+
+    #[test]
+    fn parse_sessions_requires_three_fields() {
+        let input = "s1\t1";
+        let result = parse_sessions(input);
+        assert!(result.is_err());
+    }
 
     #[test]
     fn parse_windows_accepts_window_activity_field() {

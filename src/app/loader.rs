@@ -4,6 +4,7 @@ use crate::app::tmux_window_mapper::map_raw_windows_to_entries;
 use crate::domain::error::AdapterError;
 use crate::domain::snapshot::Snapshot;
 use crate::domain::sort::build_sorted_board;
+use std::collections::HashMap;
 
 const DEFAULT_ZOXIDE_LIMIT: usize = 100;
 
@@ -38,9 +39,20 @@ impl SnapshotLoader {
             .current_window_index()
             .unwrap_or_else(|_| "0".into());
 
+        let sessions = self.tmux.list_sessions().unwrap_or_default();
+        let session_activities: HashMap<String, Option<i64>> = sessions
+            .iter()
+            .map(|s| (s.session_name.clone(), s.session_activity))
+            .collect();
+
         let raw_windows = self.tmux.list_windows().unwrap_or_default();
-        let tmux_entries =
-            map_raw_windows_to_entries(raw_windows, &current_session, &current_window_index);
+
+        let tmux_entries = map_raw_windows_to_entries(
+            raw_windows,
+            &current_session,
+            &current_window_index,
+            &session_activities,
+        );
 
         let zoxide_entries = self
             .zoxide
@@ -52,6 +64,7 @@ impl SnapshotLoader {
             &current_window_index,
             tmux_entries,
             zoxide_entries,
+            &session_activities,
         );
 
         let current_window = format!("{current_session}:{current_window_index}");

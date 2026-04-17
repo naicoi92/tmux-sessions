@@ -312,6 +312,7 @@ mod tests {
             SortPriority::CurrentWindow,
             true,
             None,
+            None,
         );
 
         let preview = generator
@@ -363,6 +364,7 @@ mod tests {
             "/tmp".to_string(),
             SortPriority::CurrentWindow,
             true,
+            None,
             None,
         );
 
@@ -432,6 +434,7 @@ mod tests {
             SortPriority::CurrentWindow,
             true,
             None,
+            None,
         );
 
         let _ = generator
@@ -483,6 +486,7 @@ mod tests {
             SortPriority::CurrentSessionOtherWindow,
             false,
             None,
+            None,
         );
 
         let _ = generator
@@ -532,6 +536,7 @@ mod tests {
             "/tmp".to_string(),
             SortPriority::CurrentWindow,
             true,
+            None,
             None,
         );
 
@@ -583,6 +588,7 @@ mod tests {
             "/tmp".to_string(),
             SortPriority::CurrentWindow,
             true,
+            None,
             None,
         );
 
@@ -689,6 +695,7 @@ mod tests {
             SortPriority::OtherSessionWindow,
             false,
             None,
+            None,
         );
 
         let preview = generator
@@ -740,6 +747,7 @@ mod tests {
             test_dir.to_str().unwrap().to_string(),
             SortPriority::OtherSessionWindow,
             false,
+            None,
             None,
         );
 
@@ -840,6 +848,7 @@ mod tests {
             "/nonexistent/path/for/tmux-preview-fallback".to_string(),
             SortPriority::OtherSessionWindow,
             false,
+            None,
             None,
         );
 

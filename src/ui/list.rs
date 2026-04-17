@@ -254,6 +254,7 @@ mod tests {
             SortPriority::OtherSessionWindow,
             false,
             None,
+            None,
         );
         entry.matched_indices = vec![10, 11, 12, 13, 14];
 

@@ -31,9 +31,32 @@ fn build_loader(
     current_session: &str,
     current_window_idx: &str,
 ) -> tmux_sessions::app::loader::SnapshotLoader {
+    use std::collections::HashMap;
+    use tmux_sessions::adapters::tmux::RawSession;
+
+    // Build session_activity from max window_activity per session
+    let mut max_activity: HashMap<String, Option<i64>> = HashMap::new();
+    for w in &windows {
+        let entry = max_activity.entry(w.session_name.clone()).or_insert(None);
+        match (*entry, w.window_activity) {
+            (Some(a), Some(b)) => *entry = Some(a.max(b)),
+            (None, Some(b)) => *entry = Some(b),
+            _ => {}
+        }
+    }
+
+    let sessions: Vec<RawSession> = max_activity
+        .keys()
+        .map(|name| RawSession {
+            session_name: name.clone(),
+            attached: name == current_session,
+            session_activity: max_activity[name],
+        })
+        .collect();
+
     let tmux = FakeTmuxSource {
         windows,
-        sessions: vec![],
+        sessions,
         current_session_name: current_session.into(),
         current_window_idx: current_window_idx.into(),
         existing_sessions: vec![current_session.into()],
@@ -236,6 +259,7 @@ fn integration_other_session_priority_comes_from_board_normalization() {
         vec![w("s2", "3", "foreign"), w("s1", "1", "current")],
         "s1",
         "1",
+        &std::collections::HashMap::new(),
     );
 
     let s2_before = mapped
@@ -248,7 +272,7 @@ fn integration_other_session_priority_comes_from_board_normalization() {
         "windows_to_entries should not assign OtherSessionWindow directly"
     );
 
-    let board = build_sorted_board("s1", "1", mapped, vec![]);
+    let board = build_sorted_board("s1", "1", mapped, vec![], &std::collections::HashMap::new());
     let s2_after = board
         .iter()
         .find(|e| e.target == "s2:3")

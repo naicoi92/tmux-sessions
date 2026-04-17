@@ -46,6 +46,7 @@ mod tests {
             SortPriority::CurrentWindow,
             true,
             None,
+            None,
         )
     }
 

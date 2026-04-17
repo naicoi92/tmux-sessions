@@ -148,6 +148,7 @@ mod tests {
             crate::domain::entry::SortPriority::CurrentWindow,
             true,
             None,
+            None,
         )
     }
 
@@ -268,6 +269,7 @@ mod tests {
             "/tmp".into(),
             crate::domain::entry::SortPriority::OtherSessionWindow,
             false,
+            None,
             None,
         );
 

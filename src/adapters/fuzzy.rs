@@ -80,6 +80,7 @@ mod tests {
             SortPriority::OtherSessionWindow,
             false,
             None,
+            None,
         )
     }
 
@@ -146,6 +147,7 @@ mod tests {
             "/path".into(),
             SortPriority::OtherSessionWindow,
             false,
+            None,
             None,
         );
 

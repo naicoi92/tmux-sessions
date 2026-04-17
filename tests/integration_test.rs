@@ -212,13 +212,23 @@ fn full_board_sort_with_fake_adapters() {
 
     let current_session = fake.current_session().unwrap();
     let current_idx = fake.current_window_index().unwrap();
-    let tmux_entries =
-        map_raw_windows_to_entries(fake.list_windows().unwrap(), &current_session, &current_idx);
+    let tmux_entries = map_raw_windows_to_entries(
+        fake.list_windows().unwrap(),
+        &current_session,
+        &current_idx,
+        &std::collections::HashMap::new(),
+    );
 
     let zoxide = FakeZoxideSource::with_dirs(&["/home/project1", "/home/project2"]);
     let zoxide_entries = zoxide.directories(10).unwrap();
 
-    let board = build_sorted_board(&current_session, &current_idx, tmux_entries, zoxide_entries);
+    let board = build_sorted_board(
+        &current_session,
+        &current_idx,
+        tmux_entries,
+        zoxide_entries,
+        &std::collections::HashMap::new(),
+    );
 
     assert_eq!(board.len(), 5);
     assert_eq!(board[0].priority, SortPriority::CurrentWindow);
@@ -251,6 +261,7 @@ fn action_goto_for_window_entry() {
         "/path".into(),
         SortPriority::CurrentWindow,
         true,
+        None,
         None,
     );
     let action = Action::goto_window(entry.target.clone(), entry.path.clone());
@@ -322,6 +333,7 @@ fn existing_item_enter_switches_correct_target() {
                 SortPriority::OtherSessionWindow,
                 false,
                 None,
+                None,
             ),
             Entry::zoxide("project".into(), "/work/project".into()),
         ],
@@ -361,6 +373,7 @@ fn zoxide_enter_creates_single_session_then_switches() {
                 "/work/editor".into(),
                 SortPriority::OtherSessionWindow,
                 false,
+                None,
                 None,
             ),
             Entry::zoxide("project".into(), "/work/project".into()),
@@ -406,6 +419,7 @@ fn grouped_existing_switch_flow_resolves_actionable_child_target() {
                 SortPriority::OtherSessionWindow,
                 false,
                 None,
+                None,
             ),
             Entry::window(
                 "team".into(),
@@ -414,6 +428,7 @@ fn grouped_existing_switch_flow_resolves_actionable_child_target() {
                 "/work/team".into(),
                 SortPriority::OtherSessionWindow,
                 false,
+                None,
                 None,
             ),
             Entry::zoxide("project".into(), "/work/project".into()),
@@ -460,10 +475,12 @@ fn zoxide_create_flow_uses_gap_filling_name_when_sessions_exist() {
         RawSession {
             session_name: "project".into(),
             attached: true,
+            session_activity: None,
         },
         RawSession {
             session_name: "project-1".into(),
             attached: false,
+            session_activity: None,
         },
     ]);
 
@@ -497,6 +514,7 @@ fn grouped_rows_keep_header_non_actionable_and_selection_actionable() {
                 SortPriority::OtherSessionWindow,
                 false,
                 None,
+                None,
             ),
             Entry::window(
                 "grouped".into(),
@@ -505,6 +523,7 @@ fn grouped_rows_keep_header_non_actionable_and_selection_actionable() {
                 "/grouped".into(),
                 SortPriority::OtherSessionWindow,
                 false,
+                None,
                 None,
             ),
             Entry::zoxide("z".into(), "/z".into()),
@@ -539,6 +558,7 @@ fn rapid_preview_requests_keep_latest_target_content() {
         SortPriority::OtherSessionWindow,
         false,
         None,
+        None,
     );
     let second = Entry::window(
         "second".into(),
@@ -547,6 +567,7 @@ fn rapid_preview_requests_keep_latest_target_content() {
         "/tmp".into(),
         SortPriority::OtherSessionWindow,
         false,
+        None,
         None,
     );
 
@@ -581,6 +602,7 @@ fn existing_switch_flow_surfaces_tmux_select_error() {
             "/work/editor".into(),
             SortPriority::OtherSessionWindow,
             false,
+            None,
             None,
         )],
         "s1".into(),
@@ -684,6 +706,7 @@ fn zoxide_create_flow_surfaces_new_window_error() {
         vec![RawSession {
             session_name: "project".into(),
             attached: false,
+            session_activity: None,
         }],
         vec![RecordedCall::NewWindow {
             session: "project".into(),

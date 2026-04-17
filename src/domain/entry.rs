@@ -25,6 +25,7 @@ pub struct Entry {
     pub is_current: bool,
     pub matched_indices: Vec<u32>,
     pub window_activity: Option<i64>,
+    pub session_activity: Option<i64>,
 }
 
 impl Entry {
@@ -36,6 +37,7 @@ impl Entry {
         priority: SortPriority,
         is_current: bool,
         window_activity: Option<i64>,
+        session_activity: Option<i64>,
     ) -> Self {
         let marker = if is_current { "▸ " } else { "  " };
         let display = format!(
@@ -55,6 +57,7 @@ impl Entry {
             is_current,
             matched_indices: Vec::new(),
             window_activity,
+            session_activity,
         }
     }
 
@@ -71,6 +74,7 @@ impl Entry {
             is_current: false,
             matched_indices: Vec::new(),
             window_activity: None,
+            session_activity: None,
         }
     }
 
@@ -118,6 +122,7 @@ mod tests {
             SortPriority::CurrentWindow,
             true,
             None,
+            None,
         );
         assert_eq!(entry.target, "mysession:1");
         assert_eq!(entry.entry_type, EntryType::Window);
@@ -133,6 +138,7 @@ mod tests {
             "/tmp".into(),
             SortPriority::CurrentSessionOtherWindow,
             false,
+            None,
             None,
         );
 
@@ -151,6 +157,7 @@ mod tests {
             SortPriority::CurrentWindow,
             true,
             None,
+            None,
         );
         assert!(entry.display.starts_with("▸"));
     }
@@ -164,6 +171,7 @@ mod tests {
             "/path".into(),
             SortPriority::CurrentSessionOtherWindow,
             false,
+            None,
             None,
         );
         assert!(!entry.display.starts_with("▸"));
@@ -188,6 +196,7 @@ mod tests {
             SortPriority::CurrentWindow,
             true,
             None,
+            None,
         );
         let other_session = Entry::window(
             "s2".into(),
@@ -196,6 +205,7 @@ mod tests {
             "/".into(),
             SortPriority::OtherSessionWindow,
             false,
+            None,
             None,
         );
         let zoxide = Entry::zoxide("dir".into(), "/dir".into());

@@ -44,6 +44,7 @@ impl FakeTmuxSource {
             sessions: vec![RawSession {
                 session_name: session.into(),
                 attached: true,
+                session_activity: None,
             }],
             current_session_name: session.into(),
             current_window_idx: index.into(),

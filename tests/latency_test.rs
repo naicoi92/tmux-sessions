@@ -93,6 +93,7 @@ fn filtered_entries_fast_on_snapshot() {
                 SortPriority::OtherSessionWindow,
                 false,
                 None,
+                None,
             )
         })
         .collect();

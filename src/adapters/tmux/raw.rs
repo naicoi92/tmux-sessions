@@ -11,4 +11,5 @@ pub struct RawWindow {
 pub struct RawSession {
     pub session_name: String,
     pub attached: bool,
+    pub session_activity: Option<i64>,
 }

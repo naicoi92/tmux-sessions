@@ -264,6 +264,7 @@ mod tests {
             SortPriority::OtherSessionWindow,
             false,
             None,
+            None,
         )
     }
 
@@ -275,6 +276,7 @@ mod tests {
             "/p".into(),
             SortPriority::OtherSessionWindow,
             false,
+            None,
             None,
         )
     }
@@ -419,6 +421,7 @@ mod tests {
                     SortPriority::OtherSessionWindow,
                     false,
                     None,
+                    None,
                 ),
                 Entry::window(
                     "s2".into(),
@@ -427,6 +430,7 @@ mod tests {
                     "/p".into(),
                     SortPriority::OtherSessionWindow,
                     false,
+                    None,
                     None,
                 ),
             ],
@@ -446,6 +450,7 @@ mod tests {
                     SortPriority::OtherSessionWindow,
                     false,
                     None,
+                    None,
                 ),
                 Entry::window(
                     "s1".into(),
@@ -454,6 +459,7 @@ mod tests {
                     "/p".into(),
                     SortPriority::OtherSessionWindow,
                     false,
+                    None,
                     None,
                 ),
             ],
@@ -477,6 +483,7 @@ mod tests {
                     SortPriority::OtherSessionWindow,
                     false,
                     None,
+                    None,
                 ),
                 Entry::window(
                     "b".into(),
@@ -486,6 +493,7 @@ mod tests {
                     SortPriority::OtherSessionWindow,
                     false,
                     None,
+                    None,
                 ),
                 Entry::window(
                     "c".into(),
@@ -494,6 +502,7 @@ mod tests {
                     "/p".into(),
                     SortPriority::OtherSessionWindow,
                     false,
+                    None,
                     None,
                 ),
             ],
@@ -513,6 +522,7 @@ mod tests {
                     SortPriority::OtherSessionWindow,
                     false,
                     None,
+                    None,
                 ),
                 Entry::window(
                     "c".into(),
@@ -521,6 +531,7 @@ mod tests {
                     "/p".into(),
                     SortPriority::OtherSessionWindow,
                     false,
+                    None,
                     None,
                 ),
             ],
@@ -544,6 +555,7 @@ mod tests {
                     SortPriority::OtherSessionWindow,
                     false,
                     None,
+                    None,
                 ),
                 Entry::window(
                     "s".into(),
@@ -553,6 +565,7 @@ mod tests {
                     SortPriority::OtherSessionWindow,
                     false,
                     None,
+                    None,
                 ),
                 Entry::window(
                     "s".into(),
@@ -561,6 +574,7 @@ mod tests {
                     "/p".into(),
                     SortPriority::OtherSessionWindow,
                     false,
+                    None,
                     None,
                 ),
             ],
@@ -719,6 +733,7 @@ mod tests {
                     SortPriority::CurrentWindow,
                     true,
                     None,
+                    None,
                 ),
                 Entry::window(
                     "s".into(),
@@ -727,6 +742,7 @@ mod tests {
                     "/p".into(),
                     SortPriority::CurrentSessionOtherWindow,
                     false,
+                    None,
                     None,
                 ),
             ],
@@ -750,6 +766,7 @@ mod tests {
                     "/tmp".into(),
                     SortPriority::CurrentWindow,
                     true,
+                    None,
                     None,
                 ),
                 Entry::zoxide("proj".into(), "/tmp/proj".into()),

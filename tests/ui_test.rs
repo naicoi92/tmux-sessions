@@ -29,6 +29,7 @@ fn w(name: &str) -> Entry {
         SortPriority::OtherSessionWindow,
         false,
         None,
+        None,
     )
 }
 
@@ -124,6 +125,7 @@ fn filter_then_move_works() {
             SortPriority::OtherSessionWindow,
             false,
             None,
+            None,
         ),
         Entry::window(
             "s".into(),
@@ -133,6 +135,7 @@ fn filter_then_move_works() {
             SortPriority::OtherSessionWindow,
             false,
             None,
+            None,
         ),
         Entry::window(
             "s".into(),
@@ -141,6 +144,7 @@ fn filter_then_move_works() {
             "/".into(),
             SortPriority::OtherSessionWindow,
             false,
+            None,
             None,
         ),
     ];
@@ -313,6 +317,7 @@ fn mixed_entries_in_snapshot_preserve_order() {
             SortPriority::CurrentWindow,
             true,
             None,
+            None,
         ),
         Entry::window(
             "s2".into(),
@@ -321,6 +326,7 @@ fn mixed_entries_in_snapshot_preserve_order() {
             "/".into(),
             SortPriority::OtherSessionWindow,
             false,
+            None,
             None,
         ),
         Entry::zoxide("dir".into(), "/dir".into()),
@@ -347,6 +353,7 @@ fn grouped_list_renders_multi_window_sessions_as_groups() {
             SortPriority::CurrentSessionOtherWindow,
             false,
             None,
+            None,
         ),
         Entry::window(
             "team".into(),
@@ -355,6 +362,7 @@ fn grouped_list_renders_multi_window_sessions_as_groups() {
             "/team".into(),
             SortPriority::CurrentSessionOtherWindow,
             false,
+            None,
             None,
         ),
     ];
@@ -380,6 +388,7 @@ fn grouped_list_keeps_single_window_as_standalone_item() {
         "/solo".into(),
         SortPriority::CurrentWindow,
         true,
+        None,
         None,
     )];
 
@@ -419,6 +428,7 @@ fn app_state_never_selects_group_header() {
             SortPriority::CurrentSessionOtherWindow,
             false,
             None,
+            None,
         ),
         Entry::window(
             "grouped".into(),
@@ -427,6 +437,7 @@ fn app_state_never_selects_group_header() {
             "/grouped".into(),
             SortPriority::CurrentSessionOtherWindow,
             false,
+            None,
             None,
         ),
     ];
@@ -449,6 +460,7 @@ fn selection_survives_snapshot_replace_by_stable_target() {
             SortPriority::OtherSessionWindow,
             false,
             None,
+            None,
         ),
         Entry::window(
             "beta".into(),
@@ -457,6 +469,7 @@ fn selection_survives_snapshot_replace_by_stable_target() {
             "/beta".into(),
             SortPriority::OtherSessionWindow,
             false,
+            None,
             None,
         ),
     ];
@@ -474,6 +487,7 @@ fn selection_survives_snapshot_replace_by_stable_target() {
             SortPriority::OtherSessionWindow,
             false,
             None,
+            None,
         ),
         Entry::window(
             "beta".into(),
@@ -483,6 +497,7 @@ fn selection_survives_snapshot_replace_by_stable_target() {
             SortPriority::OtherSessionWindow,
             false,
             None,
+            None,
         ),
         Entry::window(
             "alpha".into(),
@@ -491,6 +506,7 @@ fn selection_survives_snapshot_replace_by_stable_target() {
             "/alpha".into(),
             SortPriority::OtherSessionWindow,
             false,
+            None,
             None,
         ),
     ];
@@ -514,6 +530,7 @@ fn selection_falls_back_to_nearest_actionable_when_target_disappears() {
             SortPriority::OtherSessionWindow,
             false,
             None,
+            None,
         ),
         Entry::window(
             "beta".into(),
@@ -523,6 +540,7 @@ fn selection_falls_back_to_nearest_actionable_when_target_disappears() {
             SortPriority::OtherSessionWindow,
             false,
             None,
+            None,
         ),
         Entry::window(
             "charlie".into(),
@@ -531,6 +549,7 @@ fn selection_falls_back_to_nearest_actionable_when_target_disappears() {
             "/charlie".into(),
             SortPriority::OtherSessionWindow,
             false,
+            None,
             None,
         ),
     ];
@@ -548,6 +567,7 @@ fn selection_falls_back_to_nearest_actionable_when_target_disappears() {
             SortPriority::OtherSessionWindow,
             false,
             None,
+            None,
         ),
         Entry::window(
             "charlie".into(),
@@ -556,6 +576,7 @@ fn selection_falls_back_to_nearest_actionable_when_target_disappears() {
             "/charlie".into(),
             SortPriority::OtherSessionWindow,
             false,
+            None,
             None,
         ),
     ];
@@ -579,6 +600,7 @@ fn selection_survives_filter_roundtrip_by_target_identity() {
             SortPriority::OtherSessionWindow,
             false,
             None,
+            None,
         ),
         Entry::window(
             "s".into(),
@@ -588,6 +610,7 @@ fn selection_survives_filter_roundtrip_by_target_identity() {
             SortPriority::OtherSessionWindow,
             false,
             None,
+            None,
         ),
         Entry::window(
             "s".into(),
@@ -596,6 +619,7 @@ fn selection_survives_filter_roundtrip_by_target_identity() {
             "/".into(),
             SortPriority::OtherSessionWindow,
             false,
+            None,
             None,
         ),
     ];
@@ -625,6 +649,7 @@ fn replace_snapshot_with_group_headers_still_selects_actionable_entry() {
             SortPriority::OtherSessionWindow,
             false,
             None,
+            None,
         ),
         Entry::window(
             "b".into(),
@@ -633,6 +658,7 @@ fn replace_snapshot_with_group_headers_still_selects_actionable_entry() {
             "/b".into(),
             SortPriority::OtherSessionWindow,
             false,
+            None,
             None,
         ),
     ];
@@ -649,6 +675,7 @@ fn replace_snapshot_with_group_headers_still_selects_actionable_entry() {
             SortPriority::OtherSessionWindow,
             false,
             None,
+            None,
         ),
         Entry::window(
             "b".into(),
@@ -658,6 +685,7 @@ fn replace_snapshot_with_group_headers_still_selects_actionable_entry() {
             SortPriority::OtherSessionWindow,
             false,
             None,
+            None,
         ),
         Entry::window(
             "a".into(),
@@ -666,6 +694,7 @@ fn replace_snapshot_with_group_headers_still_selects_actionable_entry() {
             "/a".into(),
             SortPriority::OtherSessionWindow,
             false,
+            None,
             None,
         ),
     ];
