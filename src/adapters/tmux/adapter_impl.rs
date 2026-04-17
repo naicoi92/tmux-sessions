@@ -22,8 +22,8 @@ impl Default for TmuxAdapter {
 
 impl TmuxSource for TmuxAdapter {
     fn list_windows(&self) -> Result<Vec<RawWindow>, AdapterError> {
-        let fmt = "#{session_name}\t#{window_index}\t#{window_name}\t#{pane_current_path}";
-        let output = run_tmux(&["list-windows", "-a", "-F", fmt])?;
+        let fmt = "#{session_name}\t#{window_index}\t#{window_name}\t#{pane_current_path}\t#{window_activity}";
+        let output = run_tmux(&["list-windows", "-a", "-O", "activity", "-F", fmt])?;
         parse_windows(&output)
     }
 

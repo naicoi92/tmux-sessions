@@ -191,18 +191,21 @@ fn full_board_sort_with_fake_adapters() {
             window_index: "0".into(),
             window_name: "remote".into(),
             window_path: "/remote".into(),
+            window_activity: None,
         },
         RawWindow {
             session_name: "s1".into(),
             window_index: "0".into(),
             window_name: "main".into(),
             window_path: "/home".into(),
+            window_activity: None,
         },
         RawWindow {
             session_name: "s1".into(),
             window_index: "1".into(),
             window_name: "edit".into(),
             window_path: "/home".into(),
+            window_activity: None,
         },
     ];
     fake.sessions = vec![];

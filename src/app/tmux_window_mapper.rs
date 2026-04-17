@@ -38,12 +38,14 @@ mod tests {
                 window_index: "0".into(),
                 window_name: "main".into(),
                 window_path: "/home".into(),
+                window_activity: None,
             },
             RawWindow {
                 session_name: "s2".into(),
                 window_index: "1".into(),
                 window_name: "other".into(),
                 window_path: "/tmp".into(),
+                window_activity: None,
             },
         ];
 

@@ -54,12 +54,14 @@ mod tests {
 
     #[test]
     fn parse_windows_valid_input() {
-        let input = "session1\t0\tmain\t/home/user\nsession1\t1\tother\t/home/user";
+        let input =
+            "session1\t0\tmain\t/home/user\t1714000000\nsession1\t1\tother\t/home/user\t1714000100";
         let windows = parser::parse_windows(input).unwrap();
         assert_eq!(windows.len(), 2);
         assert_eq!(windows[0].session_name, "session1");
         assert_eq!(windows[0].window_index, "0");
         assert_eq!(windows[0].window_name, "main");
+        assert_eq!(windows[0].window_activity, Some(1714000000));
         assert_eq!(windows[1].window_name, "other");
     }
 
@@ -93,12 +95,14 @@ mod tests {
                 window_index: "0".into(),
                 window_name: "main".into(),
                 window_path: "/home".into(),
+                window_activity: None,
             },
             RawWindow {
                 session_name: "s1".into(),
                 window_index: "1".into(),
                 window_name: "other".into(),
                 window_path: "/home".into(),
+                window_activity: None,
             },
         ];
         let entries = map_raw_windows_to_entries(raw, "s1", "0");
