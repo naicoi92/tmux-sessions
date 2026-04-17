@@ -21,14 +21,7 @@ fn snap_with(entries: Vec<Entry>) -> Snapshot {
 }
 
 fn w(name: &str) -> Entry {
-    Entry::window(
-        "s".into(),
-        "0".into(),
-        name.into(),
-        "/".into(),
-        SortPriority::OtherSessionWindow,
-        false,
-    )
+    Entry::window("s".into(), "0".into(), name.into(), "/".into(), SortPriority::OtherSessionWindow, false, None)
 }
 
 fn z(name: &str) -> Entry {
@@ -122,6 +115,7 @@ fn filter_then_move_works() {
             "/".into(),
             SortPriority::OtherSessionWindow,
             false,
+        None,
         ),
         Entry::window(
             "s".into(),
@@ -130,6 +124,7 @@ fn filter_then_move_works() {
             "/".into(),
             SortPriority::OtherSessionWindow,
             false,
+        None,
         ),
         Entry::window(
             "s".into(),
@@ -138,6 +133,7 @@ fn filter_then_move_works() {
             "/".into(),
             SortPriority::OtherSessionWindow,
             false,
+        None,
         ),
     ];
     let mut state = AppState::new(snap_with(entries));
@@ -308,6 +304,7 @@ fn mixed_entries_in_snapshot_preserve_order() {
             "/".into(),
             SortPriority::CurrentWindow,
             true,
+        None,
         ),
         Entry::window(
             "s2".into(),
@@ -316,6 +313,7 @@ fn mixed_entries_in_snapshot_preserve_order() {
             "/".into(),
             SortPriority::OtherSessionWindow,
             false,
+        None,
         ),
         Entry::zoxide("dir".into(), "/dir".into()),
     ];
@@ -340,6 +338,7 @@ fn grouped_list_renders_multi_window_sessions_as_groups() {
             "/team".into(),
             SortPriority::CurrentSessionOtherWindow,
             false,
+        None,
         ),
         Entry::window(
             "team".into(),
@@ -348,6 +347,7 @@ fn grouped_list_renders_multi_window_sessions_as_groups() {
             "/team".into(),
             SortPriority::CurrentSessionOtherWindow,
             false,
+        None,
         ),
     ];
 
@@ -372,6 +372,7 @@ fn grouped_list_keeps_single_window_as_standalone_item() {
         "/solo".into(),
         SortPriority::CurrentWindow,
         true,
+    None,
     )];
 
     let grouped = GroupedList::from_snapshot(&snap_with(entries));
@@ -409,6 +410,7 @@ fn app_state_never_selects_group_header() {
             "/grouped".into(),
             SortPriority::CurrentSessionOtherWindow,
             false,
+        None,
         ),
         Entry::window(
             "grouped".into(),
@@ -417,6 +419,7 @@ fn app_state_never_selects_group_header() {
             "/grouped".into(),
             SortPriority::CurrentSessionOtherWindow,
             false,
+        None,
         ),
     ];
     let state = AppState::new(snap_with(entries));
@@ -437,6 +440,7 @@ fn selection_survives_snapshot_replace_by_stable_target() {
             "/alpha".into(),
             SortPriority::OtherSessionWindow,
             false,
+        None,
         ),
         Entry::window(
             "beta".into(),
@@ -445,6 +449,7 @@ fn selection_survives_snapshot_replace_by_stable_target() {
             "/beta".into(),
             SortPriority::OtherSessionWindow,
             false,
+        None,
         ),
     ];
     let mut state = AppState::new(snap_with(initial));
@@ -460,6 +465,7 @@ fn selection_survives_snapshot_replace_by_stable_target() {
             "/beta".into(),
             SortPriority::OtherSessionWindow,
             false,
+        None,
         ),
         Entry::window(
             "beta".into(),
@@ -468,6 +474,7 @@ fn selection_survives_snapshot_replace_by_stable_target() {
             "/beta".into(),
             SortPriority::OtherSessionWindow,
             false,
+        None,
         ),
         Entry::window(
             "alpha".into(),
@@ -476,6 +483,7 @@ fn selection_survives_snapshot_replace_by_stable_target() {
             "/alpha".into(),
             SortPriority::OtherSessionWindow,
             false,
+        None,
         ),
     ];
 
@@ -497,6 +505,7 @@ fn selection_falls_back_to_nearest_actionable_when_target_disappears() {
             "/alpha".into(),
             SortPriority::OtherSessionWindow,
             false,
+        None,
         ),
         Entry::window(
             "beta".into(),
@@ -505,6 +514,7 @@ fn selection_falls_back_to_nearest_actionable_when_target_disappears() {
             "/beta".into(),
             SortPriority::OtherSessionWindow,
             false,
+        None,
         ),
         Entry::window(
             "charlie".into(),
@@ -513,6 +523,7 @@ fn selection_falls_back_to_nearest_actionable_when_target_disappears() {
             "/charlie".into(),
             SortPriority::OtherSessionWindow,
             false,
+        None,
         ),
     ];
     let mut state = AppState::new(snap_with(entries));
@@ -528,6 +539,7 @@ fn selection_falls_back_to_nearest_actionable_when_target_disappears() {
             "/alpha".into(),
             SortPriority::OtherSessionWindow,
             false,
+        None,
         ),
         Entry::window(
             "charlie".into(),
@@ -536,6 +548,7 @@ fn selection_falls_back_to_nearest_actionable_when_target_disappears() {
             "/charlie".into(),
             SortPriority::OtherSessionWindow,
             false,
+        None,
         ),
     ];
 
@@ -557,6 +570,7 @@ fn selection_survives_filter_roundtrip_by_target_identity() {
             "/".into(),
             SortPriority::OtherSessionWindow,
             false,
+        None,
         ),
         Entry::window(
             "s".into(),
@@ -565,6 +579,7 @@ fn selection_survives_filter_roundtrip_by_target_identity() {
             "/".into(),
             SortPriority::OtherSessionWindow,
             false,
+        None,
         ),
         Entry::window(
             "s".into(),
@@ -573,6 +588,7 @@ fn selection_survives_filter_roundtrip_by_target_identity() {
             "/".into(),
             SortPriority::OtherSessionWindow,
             false,
+        None,
         ),
     ];
     let mut state = AppState::new(snap_with(entries));
@@ -600,6 +616,7 @@ fn replace_snapshot_with_group_headers_still_selects_actionable_entry() {
             "/a".into(),
             SortPriority::OtherSessionWindow,
             false,
+        None,
         ),
         Entry::window(
             "b".into(),
@@ -608,6 +625,7 @@ fn replace_snapshot_with_group_headers_still_selects_actionable_entry() {
             "/b".into(),
             SortPriority::OtherSessionWindow,
             false,
+        None,
         ),
     ];
     let mut state = AppState::new(snap_with(initial));
@@ -622,6 +640,7 @@ fn replace_snapshot_with_group_headers_still_selects_actionable_entry() {
             "/b".into(),
             SortPriority::OtherSessionWindow,
             false,
+        None,
         ),
         Entry::window(
             "b".into(),
@@ -630,6 +649,7 @@ fn replace_snapshot_with_group_headers_still_selects_actionable_entry() {
             "/b".into(),
             SortPriority::OtherSessionWindow,
             false,
+        None,
         ),
         Entry::window(
             "a".into(),
@@ -638,6 +658,7 @@ fn replace_snapshot_with_group_headers_still_selects_actionable_entry() {
             "/a".into(),
             SortPriority::OtherSessionWindow,
             false,
+        None,
         ),
     ];
     state.replace_snapshot(snap_with(regrouped));

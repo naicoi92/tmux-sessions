@@ -256,25 +256,11 @@ mod tests {
     }
 
     fn e_window(name: &str) -> Entry {
-        Entry::window(
-            "s1".into(),
-            "0".into(),
-            name.into(),
-            "/p".into(),
-            SortPriority::OtherSessionWindow,
-            false,
-        )
+        Entry::window("s1".into(), "0".into(), name.into(), "/p".into(), SortPriority::OtherSessionWindow, false, None)
     }
 
     fn e_window_with_index(name: &str, index: &str) -> Entry {
-        Entry::window(
-            "s1".into(),
-            index.into(),
-            name.into(),
-            "/p".into(),
-            SortPriority::OtherSessionWindow,
-            false,
-        )
+        Entry::window("s1".into(), index.into(), name.into(), "/p".into(), SortPriority::OtherSessionWindow, false, None)
     }
 
     fn e_zoxide(name: &str) -> Entry {
@@ -416,6 +402,7 @@ mod tests {
                     "/p".into(),
                     SortPriority::OtherSessionWindow,
                     false,
+                None,
                 ),
                 Entry::window(
                     "s2".into(),
@@ -424,6 +411,7 @@ mod tests {
                     "/p".into(),
                     SortPriority::OtherSessionWindow,
                     false,
+                None,
                 ),
             ],
             "s1".into(),
@@ -441,6 +429,7 @@ mod tests {
                     "/p".into(),
                     SortPriority::OtherSessionWindow,
                     false,
+                None,
                 ),
                 Entry::window(
                     "s1".into(),
@@ -449,6 +438,7 @@ mod tests {
                     "/p".into(),
                     SortPriority::OtherSessionWindow,
                     false,
+                None,
                 ),
             ],
             "s1".into(),
@@ -470,6 +460,7 @@ mod tests {
                     "/p".into(),
                     SortPriority::OtherSessionWindow,
                     false,
+                None,
                 ),
                 Entry::window(
                     "b".into(),
@@ -478,6 +469,7 @@ mod tests {
                     "/p".into(),
                     SortPriority::OtherSessionWindow,
                     false,
+                None,
                 ),
                 Entry::window(
                     "c".into(),
@@ -486,6 +478,7 @@ mod tests {
                     "/p".into(),
                     SortPriority::OtherSessionWindow,
                     false,
+                None,
                 ),
             ],
             "a".into(),
@@ -503,6 +496,7 @@ mod tests {
                     "/p".into(),
                     SortPriority::OtherSessionWindow,
                     false,
+                None,
                 ),
                 Entry::window(
                     "c".into(),
@@ -511,6 +505,7 @@ mod tests {
                     "/p".into(),
                     SortPriority::OtherSessionWindow,
                     false,
+                None,
                 ),
             ],
             "a".into(),
@@ -532,6 +527,7 @@ mod tests {
                     "/p".into(),
                     SortPriority::OtherSessionWindow,
                     false,
+                None,
                 ),
                 Entry::window(
                     "s".into(),
@@ -540,6 +536,7 @@ mod tests {
                     "/p".into(),
                     SortPriority::OtherSessionWindow,
                     false,
+                None,
                 ),
                 Entry::window(
                     "s".into(),
@@ -548,6 +545,7 @@ mod tests {
                     "/p".into(),
                     SortPriority::OtherSessionWindow,
                     false,
+                None,
                 ),
             ],
             "s".into(),
@@ -704,6 +702,7 @@ mod tests {
                     "/p".into(),
                     SortPriority::CurrentWindow,
                     true,
+                None,
                 ),
                 Entry::window(
                     "s".into(),
@@ -712,6 +711,7 @@ mod tests {
                     "/p".into(),
                     SortPriority::CurrentSessionOtherWindow,
                     false,
+                None,
                 ),
             ],
             "s".into(),
@@ -734,6 +734,7 @@ mod tests {
                     "/tmp".into(),
                     SortPriority::CurrentWindow,
                     true,
+                None,
                 ),
                 Entry::zoxide("proj".into(), "/tmp/proj".into()),
             ],

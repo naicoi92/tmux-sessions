@@ -231,6 +231,7 @@ mod tests {
                     "/".into(),
                     SortPriority::CurrentWindow,
                     true,
+                None,
                 ),
                 Entry::window(
                     "s1".into(),
@@ -239,6 +240,7 @@ mod tests {
                     "/".into(),
                     SortPriority::CurrentSessionOtherWindow,
                     false,
+                None,
                 ),
             ],
             "s1".into(),
@@ -267,6 +269,7 @@ mod tests {
                     "/".into(),
                     SortPriority::OtherSessionWindow,
                     false,
+                None,
                 ),
                 Entry::window(
                     "s1".into(),
@@ -275,6 +278,7 @@ mod tests {
                     "/".into(),
                     SortPriority::OtherSessionWindow,
                     false,
+                None,
                 ),
             ],
             "s1".into(),

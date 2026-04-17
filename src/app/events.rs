@@ -177,6 +177,7 @@ mod tests {
                     "/".into(),
                     crate::domain::entry::SortPriority::CurrentWindow,
                     true,
+                None,
                 ),
                 crate::domain::entry::Entry::window(
                     "s".into(),
@@ -185,6 +186,7 @@ mod tests {
                     "/".into(),
                     crate::domain::entry::SortPriority::CurrentSessionOtherWindow,
                     false,
+                None,
                 ),
             ],
             "s".into(),
@@ -224,6 +226,7 @@ mod tests {
                 "/".into(),
                 crate::domain::entry::SortPriority::OtherSessionWindow,
                 false,
+            None,
             )],
             "s".into(),
             "s:0".into(),

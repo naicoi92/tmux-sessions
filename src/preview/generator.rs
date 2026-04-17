@@ -304,14 +304,7 @@ mod tests {
             })
         });
 
-        let entry = Entry::window(
-            "s".to_string(),
-            "0".to_string(),
-            "main".to_string(),
-            "/tmp".to_string(),
-            SortPriority::CurrentWindow,
-            true,
-        );
+        let entry = Entry::window("s".to_string(), "0".to_string(), "main".to_string(), "/tmp".to_string(), SortPriority::CurrentWindow, true, None);
 
         let preview = generator
             .generate(&entry, None)
@@ -355,14 +348,7 @@ mod tests {
             })
         });
 
-        let entry = Entry::window(
-            "s".to_string(),
-            "0".to_string(),
-            "main".to_string(),
-            "/tmp".to_string(),
-            SortPriority::CurrentWindow,
-            true,
-        );
+        let entry = Entry::window("s".to_string(), "0".to_string(), "main".to_string(), "/tmp".to_string(), SortPriority::CurrentWindow, true, None);
 
         let preview = generator
             .generate(&entry, Some((120, 5)))
@@ -422,14 +408,7 @@ mod tests {
             })
         });
 
-        let entry = Entry::window(
-            "s".to_string(),
-            "0".to_string(),
-            "main".to_string(),
-            "/tmp".to_string(),
-            SortPriority::CurrentWindow,
-            true,
-        );
+        let entry = Entry::window("s".to_string(), "0".to_string(), "main".to_string(), "/tmp".to_string(), SortPriority::CurrentWindow, true, None);
 
         let _ = generator
             .generate(&entry, Some((88, 9)))
@@ -472,14 +451,7 @@ mod tests {
             })
         });
 
-        let entry = Entry::window(
-            "my-session".to_string(),
-            "7".to_string(),
-            "main".to_string(),
-            "/tmp".to_string(),
-            SortPriority::CurrentSessionOtherWindow,
-            false,
-        );
+        let entry = Entry::window("my-session".to_string(), "7".to_string(), "main".to_string(), "/tmp".to_string(), SortPriority::CurrentSessionOtherWindow, false, None);
 
         let _ = generator
             .generate(&entry, Some((100, 6)))
@@ -521,14 +493,7 @@ mod tests {
             })
         });
 
-        let entry = Entry::window(
-            "s".to_string(),
-            "0".to_string(),
-            "main".to_string(),
-            "/tmp".to_string(),
-            SortPriority::CurrentWindow,
-            true,
-        );
+        let entry = Entry::window("s".to_string(), "0".to_string(), "main".to_string(), "/tmp".to_string(), SortPriority::CurrentWindow, true, None);
 
         let _ = generator
             .generate(&entry, None)
@@ -571,14 +536,7 @@ mod tests {
             })
         });
 
-        let entry = Entry::window(
-            "s".to_string(),
-            "0".to_string(),
-            "main".to_string(),
-            "/tmp".to_string(),
-            SortPriority::CurrentWindow,
-            true,
-        );
+        let entry = Entry::window("s".to_string(), "0".to_string(), "main".to_string(), "/tmp".to_string(), SortPriority::CurrentWindow, true, None);
 
         let _ = generator
             .generate(&entry, Some((120, 0)))
@@ -675,14 +633,7 @@ mod tests {
             })
         });
 
-        let entry = Entry::window(
-            "missing-session".to_string(),
-            "99".to_string(),
-            "ghost".to_string(),
-            test_dir.to_str().unwrap().to_string(),
-            SortPriority::OtherSessionWindow,
-            false,
-        );
+        let entry = Entry::window("missing-session".to_string(), "99".to_string(), "ghost".to_string(), test_dir.to_str().unwrap().to_string(), SortPriority::OtherSessionWindow, false, None);
 
         let preview = generator
             .generate(&entry, Some((120, 10)))
@@ -726,14 +677,7 @@ mod tests {
             })
         });
 
-        let entry = Entry::window(
-            "nonexistent".to_string(),
-            "999".to_string(),
-            "invalid-target".to_string(),
-            test_dir.to_str().unwrap().to_string(),
-            SortPriority::OtherSessionWindow,
-            false,
-        );
+        let entry = Entry::window("nonexistent".to_string(), "999".to_string(), "invalid-target".to_string(), test_dir.to_str().unwrap().to_string(), SortPriority::OtherSessionWindow, false, None);
 
         let preview = generator
             .generate(&entry, Some((80, 12)))
@@ -825,14 +769,7 @@ mod tests {
             })
         });
 
-        let entry = Entry::window(
-            "missing-session".to_string(),
-            "99".to_string(),
-            "ghost".to_string(),
-            "/nonexistent/path/for/tmux-preview-fallback".to_string(),
-            SortPriority::OtherSessionWindow,
-            false,
-        );
+        let entry = Entry::window("missing-session".to_string(), "99".to_string(), "ghost".to_string(), "/nonexistent/path/for/tmux-preview-fallback".to_string(), SortPriority::OtherSessionWindow, false, None);
 
         let result = generator.generate(&entry, Some((100, 8)));
         assert!(result.is_err());

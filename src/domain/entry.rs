@@ -24,6 +24,7 @@ pub struct Entry {
     pub session_name: Option<String>,
     pub is_current: bool,
     pub matched_indices: Vec<u32>,
+    pub window_activity: Option<i64>,
 }
 
 impl Entry {
@@ -34,6 +35,7 @@ impl Entry {
         path: String,
         priority: SortPriority,
         is_current: bool,
+        window_activity: Option<i64>,
     ) -> Self {
         let marker = if is_current { "▸ " } else { "  " };
         let display = format!(
@@ -52,6 +54,7 @@ impl Entry {
             session_name: Some(session_name),
             is_current,
             matched_indices: Vec::new(),
+            window_activity,
         }
     }
 
@@ -67,6 +70,7 @@ impl Entry {
             session_name: None,
             is_current: false,
             matched_indices: Vec::new(),
+            window_activity: None,
         }
     }
 
@@ -102,14 +106,7 @@ mod tests {
 
     #[test]
     fn window_entry_has_correct_target() {
-        let entry = Entry::window(
-            "mysession".into(),
-            "1".into(),
-            "editor".into(),
-            "/home/user".into(),
-            SortPriority::CurrentWindow,
-            true,
-        );
+        let entry = Entry::window("mysession".into(), "1".into(), "editor".into(), "/home/user".into(), SortPriority::CurrentWindow, true, None);
         assert_eq!(entry.target, "mysession:1");
         assert_eq!(entry.entry_type, EntryType::Window);
         assert!(entry.is_current);
@@ -117,14 +114,7 @@ mod tests {
 
     #[test]
     fn window_entry_target_is_session_and_window_index_format() {
-        let entry = Entry::window(
-            "work-session".into(),
-            "12".into(),
-            "shell".into(),
-            "/tmp".into(),
-            SortPriority::CurrentSessionOtherWindow,
-            false,
-        );
+        let entry = Entry::window("work-session".into(), "12".into(), "shell".into(), "/tmp".into(), SortPriority::CurrentSessionOtherWindow, false, None);
 
         assert_eq!(entry.target, "work-session:12");
         assert!(entry.target.contains(':'));
@@ -133,27 +123,13 @@ mod tests {
 
     #[test]
     fn current_window_has_marker() {
-        let entry = Entry::window(
-            "s".into(),
-            "0".into(),
-            "main".into(),
-            "/path".into(),
-            SortPriority::CurrentWindow,
-            true,
-        );
+        let entry = Entry::window("s".into(), "0".into(), "main".into(), "/path".into(), SortPriority::CurrentWindow, true, None);
         assert!(entry.display.starts_with("▸"));
     }
 
     #[test]
     fn non_current_window_no_marker() {
-        let entry = Entry::window(
-            "s".into(),
-            "1".into(),
-            "other".into(),
-            "/path".into(),
-            SortPriority::CurrentSessionOtherWindow,
-            false,
-        );
+        let entry = Entry::window("s".into(), "1".into(), "other".into(), "/path".into(), SortPriority::CurrentSessionOtherWindow, false, None);
         assert!(!entry.display.starts_with("▸"));
     }
 
@@ -168,22 +144,8 @@ mod tests {
 
     #[test]
     fn sort_order_respects_priority() {
-        let current = Entry::window(
-            "s".into(),
-            "0".into(),
-            "a".into(),
-            "/".into(),
-            SortPriority::CurrentWindow,
-            true,
-        );
-        let other_session = Entry::window(
-            "s2".into(),
-            "0".into(),
-            "a".into(),
-            "/".into(),
-            SortPriority::OtherSessionWindow,
-            false,
-        );
+        let current = Entry::window("s".into(), "0".into(), "a".into(), "/".into(), SortPriority::CurrentWindow, true, None);
+        let other_session = Entry::window("s2".into(), "0".into(), "a".into(), "/".into(), SortPriority::OtherSessionWindow, false, None);
         let zoxide = Entry::zoxide("dir".into(), "/dir".into());
 
         let mut entries = [zoxide, other_session, current];

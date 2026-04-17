@@ -140,14 +140,7 @@ mod tests {
     }
 
     fn make_window_entry() -> Entry {
-        Entry::window(
-            "s".into(),
-            "0".into(),
-            "main".into(),
-            "/tmp".into(),
-            crate::domain::entry::SortPriority::CurrentWindow,
-            true,
-        )
+        Entry::window("s".into(), "0".into(), "main".into(), "/tmp".into(), crate::domain::entry::SortPriority::CurrentWindow, true, None)
     }
 
     fn make_invalid_zoxide_entry() -> Entry {
@@ -260,14 +253,7 @@ mod tests {
     fn request_twice_cancels_first() {
         let mut loader = make_loader();
         let entry1 = make_window_entry();
-        let entry2 = Entry::window(
-            "s2".into(),
-            "1".into(),
-            "other".into(),
-            "/tmp".into(),
-            crate::domain::entry::SortPriority::OtherSessionWindow,
-            false,
-        );
+        let entry2 = Entry::window("s2".into(), "1".into(), "other".into(), "/tmp".into(), crate::domain::entry::SortPriority::OtherSessionWindow, false, None);
 
         loader.request(&entry1, None);
         let first_id = loader.current_id;

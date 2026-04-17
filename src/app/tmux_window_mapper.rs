@@ -21,6 +21,7 @@ pub fn map_raw_windows_to_entries(
                     SortPriority::CurrentSessionOtherWindow
                 },
                 is_current,
+                w.window_activity,
             )
         })
         .collect()
@@ -56,5 +57,39 @@ mod tests {
         assert!(!entries[1].is_current);
         assert_eq!(entries[0].priority, SortPriority::CurrentWindow);
         assert_eq!(entries[1].priority, SortPriority::CurrentSessionOtherWindow);
+    }
+
+    #[test]
+    fn map_raw_windows_propagates_window_activity() {
+        let raw = vec![
+            RawWindow {
+                session_name: "s1".into(),
+                window_index: "0".into(),
+                window_name: "main".into(),
+                window_path: "/home".into(),
+                window_activity: Some(1714000000),
+            },
+            RawWindow {
+                session_name: "s2".into(),
+                window_index: "1".into(),
+                window_name: "other".into(),
+                window_path: "/tmp".into(),
+                window_activity: None,
+            },
+            RawWindow {
+                session_name: "s3".into(),
+                window_index: "0".into(),
+                window_name: "idle".into(),
+                window_path: "/var".into(),
+                window_activity: Some(1713000000),
+            },
+        ];
+
+        let entries = map_raw_windows_to_entries(raw, "s1", "0");
+
+        assert_eq!(entries.len(), 3);
+        assert_eq!(entries[0].window_activity, Some(1714000000));
+        assert_eq!(entries[1].window_activity, None);
+        assert_eq!(entries[2].window_activity, Some(1713000000));
     }
 }

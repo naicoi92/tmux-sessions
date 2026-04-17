@@ -43,14 +43,7 @@ mod tests {
     use crate::domain::entry::EntryType;
 
     fn make_window(session: &str, index: &str, name: &str, is_current: bool) -> Entry {
-        Entry::window(
-            session.into(),
-            index.into(),
-            name.into(),
-            "/path".into(),
-            SortPriority::CurrentSessionOtherWindow,
-            is_current,
-        )
+        Entry::window(session.into(), index.into(), name.into(), "/path".into(), SortPriority::CurrentSessionOtherWindow, is_current, None)
     }
 
     #[test]
@@ -134,6 +127,7 @@ mod tests {
                 "/s1".into(),
                 SortPriority::CurrentWindow,
                 false,
+            None,
             ),
             Entry::window(
                 "s1".into(),
@@ -142,6 +136,7 @@ mod tests {
                 "/s1".into(),
                 SortPriority::CurrentSessionOtherWindow,
                 true,
+            None,
             ),
             Entry::window(
                 "s2".into(),
@@ -150,6 +145,7 @@ mod tests {
                 "/s2".into(),
                 SortPriority::CurrentSessionOtherWindow,
                 false,
+            None,
             ),
         ];
 
@@ -173,6 +169,7 @@ mod tests {
                 "/s2".into(),
                 SortPriority::CurrentSessionOtherWindow,
                 false,
+            None,
             ),
             Entry::window(
                 "s1".into(),
@@ -181,6 +178,7 @@ mod tests {
                 "/s1".into(),
                 SortPriority::CurrentWindow,
                 true,
+            None,
             ),
         ];
 
