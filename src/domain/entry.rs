@@ -24,9 +24,12 @@ pub struct Entry {
     pub session_name: Option<String>,
     pub is_current: bool,
     pub matched_indices: Vec<u32>,
+    pub window_activity: Option<i64>,
+    pub session_activity: Option<i64>,
 }
 
 impl Entry {
+    #[allow(clippy::too_many_arguments)]
     pub fn window(
         session_name: String,
         window_index: String,
@@ -34,6 +37,8 @@ impl Entry {
         path: String,
         priority: SortPriority,
         is_current: bool,
+        window_activity: Option<i64>,
+        session_activity: Option<i64>,
     ) -> Self {
         let marker = if is_current { "▸ " } else { "  " };
         let display = format!(
@@ -52,6 +57,8 @@ impl Entry {
             session_name: Some(session_name),
             is_current,
             matched_indices: Vec::new(),
+            window_activity,
+            session_activity,
         }
     }
 
@@ -67,12 +74,18 @@ impl Entry {
             session_name: None,
             is_current: false,
             matched_indices: Vec::new(),
+            window_activity: None,
+            session_activity: None,
         }
     }
 
     pub fn with_matched_indices(mut self, indices: Vec<u32>) -> Self {
         self.matched_indices = indices;
         self
+    }
+
+    pub fn activity_timestamp(&self) -> Option<i64> {
+        self.window_activity
     }
 }
 
@@ -109,6 +122,8 @@ mod tests {
             "/home/user".into(),
             SortPriority::CurrentWindow,
             true,
+            None,
+            None,
         );
         assert_eq!(entry.target, "mysession:1");
         assert_eq!(entry.entry_type, EntryType::Window);
@@ -124,6 +139,8 @@ mod tests {
             "/tmp".into(),
             SortPriority::CurrentSessionOtherWindow,
             false,
+            None,
+            None,
         );
 
         assert_eq!(entry.target, "work-session:12");
@@ -140,6 +157,8 @@ mod tests {
             "/path".into(),
             SortPriority::CurrentWindow,
             true,
+            None,
+            None,
         );
         assert!(entry.display.starts_with("▸"));
     }
@@ -153,6 +172,8 @@ mod tests {
             "/path".into(),
             SortPriority::CurrentSessionOtherWindow,
             false,
+            None,
+            None,
         );
         assert!(!entry.display.starts_with("▸"));
     }
@@ -175,6 +196,8 @@ mod tests {
             "/".into(),
             SortPriority::CurrentWindow,
             true,
+            None,
+            None,
         );
         let other_session = Entry::window(
             "s2".into(),
@@ -183,6 +206,8 @@ mod tests {
             "/".into(),
             SortPriority::OtherSessionWindow,
             false,
+            None,
+            None,
         );
         let zoxide = Entry::zoxide("dir".into(), "/dir".into());
 

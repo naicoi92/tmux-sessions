@@ -28,6 +28,7 @@ fn fake_with_session(name: &str) -> FakeTmuxSource {
         sessions: vec![RawSession {
             session_name: name.into(),
             attached: true,
+            session_activity: None,
         }],
         current_session_name: name.into(),
         current_window_idx: "0".into(),
@@ -379,6 +380,7 @@ fn goto_zoxide_invalid_basename_sanitized() {
         sessions: vec![RawSession {
             session_name: "_".into(),
             attached: true,
+            session_activity: None,
         }],
         current_session_name: "_".into(),
         current_window_idx: "0".into(),
@@ -407,10 +409,12 @@ fn goto_zoxide_multiple_collisions() {
             RawSession {
                 session_name: "project".into(),
                 attached: false,
+                session_activity: None,
             },
             RawSession {
                 session_name: "project-1".into(),
                 attached: true,
+                session_activity: None,
             },
         ],
         current_session_name: "project-1".into(),

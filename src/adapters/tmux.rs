@@ -54,12 +54,14 @@ mod tests {
 
     #[test]
     fn parse_windows_valid_input() {
-        let input = "session1\t0\tmain\t/home/user\nsession1\t1\tother\t/home/user";
+        let input =
+            "session1\t0\tmain\t/home/user\t1714000000\nsession1\t1\tother\t/home/user\t1714000100";
         let windows = parser::parse_windows(input).unwrap();
         assert_eq!(windows.len(), 2);
         assert_eq!(windows[0].session_name, "session1");
         assert_eq!(windows[0].window_index, "0");
         assert_eq!(windows[0].window_name, "main");
+        assert_eq!(windows[0].window_activity, Some(1714000000));
         assert_eq!(windows[1].window_name, "other");
     }
 
@@ -78,11 +80,13 @@ mod tests {
 
     #[test]
     fn parse_sessions_valid_input() {
-        let input = "s1\t1\ns2\t0";
+        let input = "s1\t1\t1714000000\ns2\t0\t";
         let sessions = parser::parse_sessions(input).unwrap();
         assert_eq!(sessions.len(), 2);
         assert!(sessions[0].attached);
         assert!(!sessions[1].attached);
+        assert_eq!(sessions[0].session_activity, Some(1714000000));
+        assert_eq!(sessions[1].session_activity, None);
     }
 
     #[test]
@@ -93,15 +97,17 @@ mod tests {
                 window_index: "0".into(),
                 window_name: "main".into(),
                 window_path: "/home".into(),
+                window_activity: None,
             },
             RawWindow {
                 session_name: "s1".into(),
                 window_index: "1".into(),
                 window_name: "other".into(),
                 window_path: "/home".into(),
+                window_activity: None,
             },
         ];
-        let entries = map_raw_windows_to_entries(raw, "s1", "0");
+        let entries = map_raw_windows_to_entries(raw, "s1", "0", &std::collections::HashMap::new());
         assert_eq!(entries.len(), 2);
         assert!(entries[0].is_current);
         assert!(!entries[1].is_current);

@@ -79,6 +79,8 @@ mod tests {
             "/path".into(),
             SortPriority::OtherSessionWindow,
             false,
+            None,
+            None,
         )
     }
 
@@ -145,6 +147,8 @@ mod tests {
             "/path".into(),
             SortPriority::OtherSessionWindow,
             false,
+            None,
+            None,
         );
 
         let results = matcher.match_entries("main", std::slice::from_ref(&entry));

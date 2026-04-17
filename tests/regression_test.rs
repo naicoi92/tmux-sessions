@@ -16,6 +16,8 @@ fn e_win(session: &str, index: &str, name: &str) -> Entry {
         "/p".into(),
         SortPriority::OtherSessionWindow,
         false,
+        None,
+        None,
     )
 }
 
@@ -247,6 +249,8 @@ fn entry_with_spaces_in_window_name() {
         "/path with spaces".into(),
         SortPriority::CurrentWindow,
         true,
+        None,
+        None,
     );
     assert_eq!(entry.target, "my session:0");
     assert_eq!(entry.path, "/path with spaces");
@@ -296,6 +300,8 @@ fn filter_with_spaces_in_window_name_works() {
             "/".into(),
             SortPriority::OtherSessionWindow,
             false,
+            None,
+            None,
         ),
         Entry::window(
             "s".into(),
@@ -304,6 +310,8 @@ fn filter_with_spaces_in_window_name_works() {
             "/".into(),
             SortPriority::OtherSessionWindow,
             false,
+            None,
+            None,
         ),
     ]));
     assert_eq!(state.filtered_entries().len(), 2);
@@ -353,6 +361,8 @@ fn reload_like_snapshot_replace_preserves_selected_target() {
                 "/p".into(),
                 SortPriority::OtherSessionWindow,
                 false,
+                None,
+                None,
             ),
             Entry::window(
                 "s2".into(),
@@ -361,6 +371,8 @@ fn reload_like_snapshot_replace_preserves_selected_target() {
                 "/p".into(),
                 SortPriority::OtherSessionWindow,
                 false,
+                None,
+                None,
             ),
             Entry::window(
                 "s1".into(),
@@ -369,6 +381,8 @@ fn reload_like_snapshot_replace_preserves_selected_target() {
                 "/p".into(),
                 SortPriority::OtherSessionWindow,
                 false,
+                None,
+                None,
             ),
         ],
         "s1".into(),
@@ -392,6 +406,8 @@ fn entry_equality_same_target_different_priority() {
         "/".into(),
         SortPriority::CurrentWindow,
         true,
+        None,
+        None,
     );
     let b = Entry::window(
         "s".into(),
@@ -400,6 +416,8 @@ fn entry_equality_same_target_different_priority() {
         "/other".into(),
         SortPriority::OtherSessionWindow,
         false,
+        None,
+        None,
     );
     assert_eq!(a, b);
 }

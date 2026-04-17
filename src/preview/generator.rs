@@ -287,6 +287,7 @@ mod tests {
                 window_index: "0".to_string(),
                 window_name: "main".to_string(),
                 window_path: "/tmp".to_string(),
+                window_activity: None,
             }],
             capture_fails: false,
             last_capture_target: std::sync::Arc::new(std::sync::Mutex::new(None)),
@@ -310,6 +311,8 @@ mod tests {
             "/tmp".to_string(),
             SortPriority::CurrentWindow,
             true,
+            None,
+            None,
         );
 
         let preview = generator
@@ -337,6 +340,7 @@ mod tests {
                 window_index: "0".to_string(),
                 window_name: "main".to_string(),
                 window_path: "/tmp".to_string(),
+                window_activity: None,
             }],
             capture_fails: false,
             last_capture_target: std::sync::Arc::new(std::sync::Mutex::new(None)),
@@ -360,6 +364,8 @@ mod tests {
             "/tmp".to_string(),
             SortPriority::CurrentWindow,
             true,
+            None,
+            None,
         );
 
         let preview = generator
@@ -403,6 +409,7 @@ mod tests {
                 window_index: "0".to_string(),
                 window_name: "main".to_string(),
                 window_path: "/tmp".to_string(),
+                window_activity: None,
             }],
             capture_fails: false,
             last_capture_target: std::sync::Arc::new(std::sync::Mutex::new(None)),
@@ -426,6 +433,8 @@ mod tests {
             "/tmp".to_string(),
             SortPriority::CurrentWindow,
             true,
+            None,
+            None,
         );
 
         let _ = generator
@@ -452,6 +461,7 @@ mod tests {
                 window_index: "7".to_string(),
                 window_name: "main".to_string(),
                 window_path: "/tmp".to_string(),
+                window_activity: None,
             }],
             capture_fails: false,
             last_capture_target: capture_target.clone(),
@@ -475,6 +485,8 @@ mod tests {
             "/tmp".to_string(),
             SortPriority::CurrentSessionOtherWindow,
             false,
+            None,
+            None,
         );
 
         let _ = generator
@@ -500,6 +512,7 @@ mod tests {
                 window_index: "0".to_string(),
                 window_name: "main".to_string(),
                 window_path: "/tmp".to_string(),
+                window_activity: None,
             }],
             capture_fails: false,
             last_capture_target: std::sync::Arc::new(std::sync::Mutex::new(None)),
@@ -523,6 +536,8 @@ mod tests {
             "/tmp".to_string(),
             SortPriority::CurrentWindow,
             true,
+            None,
+            None,
         );
 
         let _ = generator
@@ -549,6 +564,7 @@ mod tests {
                 window_index: "0".to_string(),
                 window_name: "main".to_string(),
                 window_path: "/tmp".to_string(),
+                window_activity: None,
             }],
             capture_fails: false,
             last_capture_target: std::sync::Arc::new(std::sync::Mutex::new(None)),
@@ -572,6 +588,8 @@ mod tests {
             "/tmp".to_string(),
             SortPriority::CurrentWindow,
             true,
+            None,
+            None,
         );
 
         let _ = generator
@@ -676,6 +694,8 @@ mod tests {
             test_dir.to_str().unwrap().to_string(),
             SortPriority::OtherSessionWindow,
             false,
+            None,
+            None,
         );
 
         let preview = generator
@@ -727,6 +747,8 @@ mod tests {
             test_dir.to_str().unwrap().to_string(),
             SortPriority::OtherSessionWindow,
             false,
+            None,
+            None,
         );
 
         let preview = generator
@@ -826,6 +848,8 @@ mod tests {
             "/nonexistent/path/for/tmux-preview-fallback".to_string(),
             SortPriority::OtherSessionWindow,
             false,
+            None,
+            None,
         );
 
         let result = generator.generate(&entry, Some((100, 8)));

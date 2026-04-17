@@ -45,6 +45,8 @@ mod tests {
             "/".into(),
             SortPriority::CurrentWindow,
             true,
+            None,
+            None,
         )
     }
 

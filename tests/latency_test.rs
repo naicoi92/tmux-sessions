@@ -15,6 +15,7 @@ fn make_loaded_loader(
             window_index: format!("{i}"),
             window_name: format!("w{i}"),
             window_path: format!("/path/{i}"),
+            window_activity: None,
         })
         .collect();
 
@@ -91,6 +92,8 @@ fn filtered_entries_fast_on_snapshot() {
                 format!("/path/{i}"),
                 SortPriority::OtherSessionWindow,
                 false,
+                None,
+                None,
             )
         })
         .collect();

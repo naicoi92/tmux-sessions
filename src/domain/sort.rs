@@ -1,7 +1,76 @@
 use crate::domain::entry::{Entry, SortPriority};
+use std::cmp::Ordering;
+use std::collections::HashMap;
 
-pub fn sort_entries(entries: &mut [Entry]) {
-    entries.sort_by(|a, b| a.priority.cmp(&b.priority));
+pub fn sort_entries(entries: &mut [Entry], session_activities: &HashMap<String, Option<i64>>) {
+    let mut session_first_index: HashMap<String, usize> = HashMap::new();
+
+    for (idx, entry) in entries.iter().enumerate() {
+        if entry.priority != SortPriority::OtherSessionWindow {
+            continue;
+        }
+
+        let Some(session) = entry.session_name.as_ref() else {
+            continue;
+        };
+
+        session_first_index.entry(session.clone()).or_insert(idx);
+    }
+
+    entries.sort_by(|a, b| {
+        let priority_cmp = a.priority.cmp(&b.priority);
+        if priority_cmp != Ordering::Equal {
+            return priority_cmp;
+        }
+
+        match a.priority {
+            SortPriority::CurrentWindow | SortPriority::ZoxideDirectory => Ordering::Equal,
+            SortPriority::CurrentSessionOtherWindow => {
+                compare_activity_desc(a.window_activity, b.window_activity)
+            }
+            SortPriority::OtherSessionWindow => {
+                let a_session = a.session_name.as_deref();
+                let b_session = b.session_name.as_deref();
+
+                if a_session == b_session {
+                    return compare_activity_desc(a.window_activity, b.window_activity);
+                }
+
+                let a_session_activity = a_session
+                    .and_then(|s| session_activities.get(s).copied())
+                    .unwrap_or(None);
+                let b_session_activity = b_session
+                    .and_then(|s| session_activities.get(s).copied())
+                    .unwrap_or(None);
+
+                let session_activity_cmp =
+                    compare_activity_desc(a_session_activity, b_session_activity);
+                if session_activity_cmp != Ordering::Equal {
+                    return session_activity_cmp;
+                }
+
+                let a_first_idx = a_session
+                    .and_then(|s| session_first_index.get(s))
+                    .copied()
+                    .unwrap_or(usize::MAX);
+                let b_first_idx = b_session
+                    .and_then(|s| session_first_index.get(s))
+                    .copied()
+                    .unwrap_or(usize::MAX);
+
+                a_first_idx.cmp(&b_first_idx)
+            }
+        }
+    });
+}
+
+fn compare_activity_desc(a: Option<i64>, b: Option<i64>) -> Ordering {
+    match (a, b) {
+        (Some(a_ts), Some(b_ts)) => b_ts.cmp(&a_ts),
+        (Some(_), None) => Ordering::Less,
+        (None, Some(_)) => Ordering::Greater,
+        (None, None) => Ordering::Equal,
+    }
 }
 
 pub fn build_sorted_board(
@@ -9,6 +78,7 @@ pub fn build_sorted_board(
     _current_window_index: &str,
     tmux_entries: Vec<Entry>,
     zoxide_entries: Vec<Entry>,
+    session_activities: &HashMap<String, Option<i64>>,
 ) -> Vec<Entry> {
     let mut board: Vec<Entry> = tmux_entries
         .into_iter()
@@ -33,7 +103,7 @@ pub fn build_sorted_board(
         .chain(zoxide_entries)
         .collect();
 
-    sort_entries(&mut board);
+    sort_entries(&mut board, session_activities);
     board
 }
 
@@ -42,7 +112,24 @@ mod tests {
     use super::*;
     use crate::domain::entry::EntryType;
 
+    fn activities(items: &[(&str, Option<i64>)]) -> HashMap<String, Option<i64>> {
+        items
+            .iter()
+            .map(|(name, ts)| ((*name).to_string(), *ts))
+            .collect()
+    }
+
     fn make_window(session: &str, index: &str, name: &str, is_current: bool) -> Entry {
+        make_window_with_activity(session, index, name, is_current, None)
+    }
+
+    fn make_window_with_activity(
+        session: &str,
+        index: &str,
+        name: &str,
+        is_current: bool,
+        window_activity: Option<i64>,
+    ) -> Entry {
         Entry::window(
             session.into(),
             index.into(),
@@ -50,6 +137,8 @@ mod tests {
             "/path".into(),
             SortPriority::CurrentSessionOtherWindow,
             is_current,
+            window_activity,
+            None,
         )
     }
 
@@ -60,7 +149,13 @@ mod tests {
             make_window("s1", "1", "b", false),
             make_window("s1", "0", "a", true),
         ];
-        let board = build_sorted_board("s1", "0", entries, vec![]);
+        let board = build_sorted_board(
+            "s1",
+            "0",
+            entries,
+            vec![],
+            &std::collections::HashMap::new(),
+        );
 
         let current_session_count = board
             .iter()
@@ -87,7 +182,7 @@ mod tests {
             Entry::zoxide("alpha".into(), "/alpha".into()),
             Entry::zoxide("beta".into(), "/beta".into()),
         ];
-        let board = build_sorted_board("s1", "0", tmux, zoxide);
+        let board = build_sorted_board("s1", "0", tmux, zoxide, &std::collections::HashMap::new());
 
         assert_eq!(board[0].entry_type, EntryType::Window);
         assert_eq!(board[1].entry_type, EntryType::Zoxide);
@@ -102,7 +197,7 @@ mod tests {
             make_window("s1", "0", "a", true),
         ];
         let zoxide = vec![Entry::zoxide("dir".into(), "/dir".into())];
-        let board = build_sorted_board("s1", "0", tmux, zoxide);
+        let board = build_sorted_board("s1", "0", tmux, zoxide, &std::collections::HashMap::new());
 
         assert_eq!(board[0].priority, SortPriority::CurrentWindow);
         assert_eq!(board[1].priority, SortPriority::CurrentSessionOtherWindow);
@@ -112,14 +207,16 @@ mod tests {
 
     #[test]
     fn empty_inputs_produce_empty_board() {
-        let board = build_sorted_board("s1", "0", vec![], vec![]);
+        let board =
+            build_sorted_board("s1", "0", vec![], vec![], &std::collections::HashMap::new());
         assert!(board.is_empty());
     }
 
     #[test]
     fn only_zoxide_entries() {
         let zoxide = vec![Entry::zoxide("a".into(), "/a".into())];
-        let board = build_sorted_board("s1", "0", vec![], zoxide);
+        let board =
+            build_sorted_board("s1", "0", vec![], zoxide, &std::collections::HashMap::new());
         assert_eq!(board.len(), 1);
         assert_eq!(board[0].priority, SortPriority::ZoxideDirectory);
     }
@@ -134,6 +231,8 @@ mod tests {
                 "/s1".into(),
                 SortPriority::CurrentWindow,
                 false,
+                None,
+                None,
             ),
             Entry::window(
                 "s1".into(),
@@ -142,6 +241,8 @@ mod tests {
                 "/s1".into(),
                 SortPriority::CurrentSessionOtherWindow,
                 true,
+                None,
+                None,
             ),
             Entry::window(
                 "s2".into(),
@@ -150,10 +251,12 @@ mod tests {
                 "/s2".into(),
                 SortPriority::CurrentSessionOtherWindow,
                 false,
+                None,
+                None,
             ),
         ];
 
-        let board = build_sorted_board("s1", "0", tmux, vec![]);
+        let board = build_sorted_board("s1", "0", tmux, vec![], &std::collections::HashMap::new());
 
         assert_eq!(board[0].target, "s1:0");
         assert_eq!(board[0].priority, SortPriority::CurrentWindow);
@@ -173,6 +276,8 @@ mod tests {
                 "/s2".into(),
                 SortPriority::CurrentSessionOtherWindow,
                 false,
+                None,
+                None,
             ),
             Entry::window(
                 "s1".into(),
@@ -181,15 +286,177 @@ mod tests {
                 "/s1".into(),
                 SortPriority::CurrentWindow,
                 true,
+                None,
+                None,
             ),
         ];
 
-        let board = build_sorted_board("s1", "1", tmux, vec![]);
+        let board = build_sorted_board("s1", "1", tmux, vec![], &std::collections::HashMap::new());
 
         let other = board
             .iter()
             .find(|e| e.target == "s2:3")
             .expect("other session entry must exist");
         assert_eq!(other.priority, SortPriority::OtherSessionWindow);
+    }
+
+    #[test]
+    fn sort_orders_windows_by_recent_activity_within_priority_buckets() {
+        let tmux = vec![
+            make_window_with_activity("s1", "1", "older", false, Some(10)),
+            make_window_with_activity("s1", "0", "current", true, Some(100)),
+            make_window_with_activity("s1", "2", "newer", false, Some(90)),
+            make_window_with_activity("s2", "0", "other-old", false, Some(1)),
+            make_window_with_activity("s2", "1", "other-new", false, Some(50)),
+        ];
+
+        let board = build_sorted_board("s1", "0", tmux, vec![], &std::collections::HashMap::new());
+        let targets: Vec<&str> = board.iter().map(|e| e.target.as_str()).collect();
+
+        assert_eq!(targets, vec!["s1:0", "s1:2", "s1:1", "s2:1", "s2:0"]);
+    }
+
+    #[test]
+    fn sort_preserves_relative_order_when_activity_missing_or_tied() {
+        let tmux = vec![
+            make_window_with_activity("s1", "0", "current", true, Some(999)),
+            make_window_with_activity("s1", "3", "tie-a", false, Some(50)),
+            make_window_with_activity("s1", "4", "tie-b", false, Some(50)),
+            make_window_with_activity("s1", "5", "none-a", false, None),
+            make_window_with_activity("s1", "6", "none-b", false, None),
+            make_window_with_activity("s2", "0", "other-none-a", false, None),
+            make_window_with_activity("s3", "0", "other-none-b", false, None),
+        ];
+
+        let board = build_sorted_board("s1", "0", tmux, vec![], &std::collections::HashMap::new());
+        let targets: Vec<&str> = board.iter().map(|e| e.target.as_str()).collect();
+
+        assert_eq!(
+            targets,
+            vec!["s1:0", "s1:3", "s1:4", "s1:5", "s1:6", "s2:0", "s3:0"]
+        );
+    }
+
+    #[test]
+    fn sort_orders_other_sessions_by_session_activity() {
+        let tmux = vec![
+            make_window_with_activity("s1", "0", "current", true, Some(80)),
+            make_window_with_activity("s2", "1", "s2-max-10", false, Some(10)),
+            make_window_with_activity("s3", "0", "s3-max-70", false, Some(70)),
+            make_window_with_activity("s2", "0", "s2-older", false, Some(5)),
+            make_window_with_activity("s4", "0", "s4-none", false, None),
+            make_window_with_activity("s3", "1", "s3-older", false, Some(1)),
+        ];
+        let session_activities = activities(&[("s2", Some(200)), ("s3", Some(300)), ("s4", None)]);
+
+        let board = build_sorted_board("s1", "0", tmux, vec![], &session_activities);
+        let targets: Vec<&str> = board.iter().map(|e| e.target.as_str()).collect();
+
+        assert_eq!(
+            targets,
+            vec!["s1:0", "s3:0", "s3:1", "s2:1", "s2:0", "s4:0"]
+        );
+    }
+
+    #[test]
+    fn sort_all_none_activity_preserves_input_order() {
+        let tmux = vec![
+            make_window_with_activity("s1", "0", "current", true, None),
+            make_window_with_activity("s2", "1", "other-b", false, None),
+            make_window_with_activity("s3", "2", "other-c", false, None),
+            make_window_with_activity("s2", "0", "other-a", false, None),
+        ];
+
+        let board = build_sorted_board("s1", "0", tmux, vec![], &std::collections::HashMap::new());
+        let targets: Vec<&str> = board.iter().map(|e| e.target.as_str()).collect();
+
+        // s1:0 first (current window), then sessions grouped together (s2 before s3 in input)
+        assert_eq!(targets, vec!["s1:0", "s2:1", "s2:0", "s3:2"]);
+    }
+
+    #[test]
+    fn sort_single_session_mru_within_current_session() {
+        // Only current session, no other sessions — MRU should order windows within it
+        let tmux = vec![
+            make_window_with_activity("s1", "2", "oldest", false, Some(10)),
+            make_window_with_activity("s1", "0", "current", true, Some(100)),
+            make_window_with_activity("s1", "3", "middle", false, Some(50)),
+            make_window_with_activity("s1", "1", "none-win", false, None),
+        ];
+
+        let board = build_sorted_board("s1", "0", tmux, vec![], &std::collections::HashMap::new());
+        let targets: Vec<&str> = board.iter().map(|e| e.target.as_str()).collect();
+
+        // Current first, then MRU: s1:3(50), s1:2(10), s1:1(None)
+        assert_eq!(targets, vec!["s1:0", "s1:3", "s1:2", "s1:1"]);
+    }
+
+    #[test]
+    fn sort_equal_session_activity_uses_first_index_breaker() {
+        // Two sessions with same session_activity — should order by first appearance index
+        let tmux = vec![
+            make_window_with_activity("s1", "0", "current", true, Some(999)),
+            make_window_with_activity("s2", "0", "s2-a", false, Some(50)),
+            make_window_with_activity("s3", "0", "s3-a", false, Some(50)),
+            make_window_with_activity("s2", "1", "s2-b", false, Some(30)),
+            make_window_with_activity("s3", "1", "s3-b", false, Some(20)),
+        ];
+        let session_activities = activities(&[("s2", Some(123)), ("s3", Some(123))]);
+
+        let board = build_sorted_board("s1", "0", tmux, vec![], &session_activities);
+        let targets: Vec<&str> = board.iter().map(|e| e.target.as_str()).collect();
+
+        // s2 appears before s3 in input, so s2 wins on equal session max
+        assert_eq!(targets, vec!["s1:0", "s2:0", "s2:1", "s3:0", "s3:1"]);
+    }
+
+    #[test]
+    fn sort_mixed_none_and_some_in_same_session() {
+        let tmux = vec![
+            make_window_with_activity("s1", "0", "current", true, Some(100)),
+            make_window_with_activity("s1", "4", "none-b", false, None),
+            make_window_with_activity("s1", "2", "has-20", false, Some(20)),
+            make_window_with_activity("s1", "3", "none-a", false, None),
+            make_window_with_activity("s1", "1", "has-50", false, Some(50)),
+        ];
+
+        let board = build_sorted_board("s1", "0", tmux, vec![], &std::collections::HashMap::new());
+        let targets: Vec<&str> = board.iter().map(|e| e.target.as_str()).collect();
+
+        // Some before None within same session; ties preserve input order
+        assert_eq!(targets, vec!["s1:0", "s1:1", "s1:2", "s1:4", "s1:3"]);
+    }
+
+    #[test]
+    fn sort_equal_timestamps_stable_within_session() {
+        // All windows in current session have same timestamp — stable sort preserves order
+        let tmux = vec![
+            make_window_with_activity("s1", "0", "current", true, Some(100)),
+            make_window_with_activity("s1", "1", "w1", false, Some(100)),
+            make_window_with_activity("s1", "2", "w2", false, Some(100)),
+            make_window_with_activity("s1", "3", "w3", false, Some(100)),
+        ];
+
+        let board = build_sorted_board("s1", "0", tmux, vec![], &std::collections::HashMap::new());
+        let targets: Vec<&str> = board.iter().map(|e| e.target.as_str()).collect();
+
+        assert_eq!(targets, vec!["s1:0", "s1:1", "s1:2", "s1:3"]);
+    }
+
+    #[test]
+    fn sort_other_session_window_with_none_vs_session_with_some_activity() {
+        // Session with Some session_activity should rank above session with None
+        let tmux = vec![
+            make_window_with_activity("s1", "0", "current", true, Some(999)),
+            make_window_with_activity("s4", "0", "all-none", false, None),
+            make_window_with_activity("s2", "0", "has-activity", false, Some(50)),
+        ];
+        let session_activities = activities(&[("s2", Some(50)), ("s4", None)]);
+
+        let board = build_sorted_board("s1", "0", tmux, vec![], &session_activities);
+        let targets: Vec<&str> = board.iter().map(|e| e.target.as_str()).collect();
+
+        // s2 has activity (50) so it ranks above s4 (all None)
+        assert_eq!(targets, vec!["s1:0", "s2:0", "s4:0"]);
     }
 }
