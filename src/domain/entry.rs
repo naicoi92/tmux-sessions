@@ -29,6 +29,7 @@ pub struct Entry {
 }
 
 impl Entry {
+    #[allow(clippy::too_many_arguments)]
     pub fn window(
         session_name: String,
         window_index: String,
