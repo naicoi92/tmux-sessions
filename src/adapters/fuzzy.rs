@@ -364,6 +364,8 @@ mod tests {
                     format!("/p/{}", i),
                     SortPriority::OtherSessionWindow,
                     false,
+                    None,
+                    None,
                 )
             })
             .collect();
