@@ -265,4 +265,67 @@ mod tests {
 
         assert!(!spans.is_empty());
     }
+
+    #[test]
+    fn render_filter_bar_vietnamese() {
+        use ratatui::backend::TestBackend;
+        use ratatui::Terminal;
+
+        let snap = crate::domain::snapshot::Snapshot::new(
+            vec![Entry::window(
+                "s".into(),
+                "0".into(),
+                "alpha".into(),
+                "/".into(),
+                SortPriority::OtherSessionWindow,
+                false,
+            )],
+            "s".into(),
+            "s:0".into(),
+        );
+        let mut state = crate::app::state::AppState::new(snap);
+        state.set_filter('t');
+        state.set_filter('ư');
+        state.set_filter('a');
+
+        let backend = TestBackend::new(40, 3);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|frame| {
+                render_filter_bar(frame, frame.area(), &state);
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn render_filter_bar_cursor_between_multibyte() {
+        use ratatui::backend::TestBackend;
+        use ratatui::Terminal;
+
+        let snap = crate::domain::snapshot::Snapshot::new(
+            vec![Entry::window(
+                "s".into(),
+                "0".into(),
+                "alpha".into(),
+                "/".into(),
+                SortPriority::OtherSessionWindow,
+                false,
+            )],
+            "s".into(),
+            "s:0".into(),
+        );
+        let mut state = crate::app::state::AppState::new(snap);
+        state.set_filter('a');
+        state.set_filter('ư');
+        state.set_filter('ộ');
+        state.move_filter_cursor_left();
+
+        let backend = TestBackend::new(40, 3);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|frame| {
+                render_filter_bar(frame, frame.area(), &state);
+            })
+            .unwrap();
+    }
 }

@@ -141,13 +141,19 @@ impl AppState {
 
     pub fn move_filter_cursor_left(&mut self) {
         if self.filter_cursor > 0 {
-            self.filter_cursor -= 1;
+            let before = &self.filter[..self.filter_cursor];
+            if let Some(c) = before.chars().last() {
+                self.filter_cursor -= c.len_utf8();
+            }
         }
     }
 
     pub fn move_filter_cursor_right(&mut self) {
         if self.filter_cursor < self.filter.len() {
-            self.filter_cursor += 1;
+            let after = &self.filter[self.filter_cursor..];
+            if let Some(c) = after.chars().next() {
+                self.filter_cursor += c.len_utf8();
+            }
         }
     }
 
@@ -777,5 +783,133 @@ mod tests {
         let first_ptr = state.filtered_rows().as_ptr();
         let second_ptr = state.filtered_rows().as_ptr();
         assert_eq!(first_ptr, second_ptr);
+    }
+
+    #[test]
+    fn insert_vietnamese_char_no_panic() {
+        let mut state = AppState::new(make_snap(vec![e_window("alpha")]));
+        state.set_filter('ư');
+        assert_eq!(state.filter, "ư");
+        assert_eq!(state.filter_cursor, 'ư'.len_utf8());
+    }
+
+    #[test]
+    fn insert_after_vietnamese_char_no_panic() {
+        let mut state = AppState::new(make_snap(vec![e_window("alpha")]));
+        state.set_filter('t');
+        state.set_filter('ư');
+        state.set_filter('a');
+        assert_eq!(state.filter, "tưa");
+    }
+
+    #[test]
+    fn move_cursor_over_vietnamese_char() {
+        let mut state = AppState::new(make_snap(vec![e_window("alpha")]));
+        state.set_filter('t');
+        state.set_filter('ư');
+        state.move_filter_cursor_left();
+        assert_eq!(state.filter_cursor, 't'.len_utf8());
+        state.move_filter_cursor_left();
+        assert_eq!(state.filter_cursor, 0);
+        state.move_filter_cursor_right();
+        assert_eq!(state.filter_cursor, 't'.len_utf8());
+        state.move_filter_cursor_right();
+        assert_eq!(state.filter_cursor, 't'.len_utf8() + 'ư'.len_utf8());
+    }
+
+    #[test]
+    fn backspace_vietnamese_char() {
+        let mut state = AppState::new(make_snap(vec![e_window("alpha")]));
+        state.set_filter('t');
+        state.set_filter('ư');
+        state.backspace_filter();
+        assert_eq!(state.filter, "t");
+        assert_eq!(state.filter_cursor, 't'.len_utf8());
+    }
+
+    #[test]
+    fn three_byte_vietnamese_insert() {
+        let mut state = AppState::new(make_snap(vec![e_window("x")]));
+        state.set_filter('ộ');
+        assert_eq!(state.filter_cursor, 3);
+    }
+
+    #[test]
+    fn four_byte_emoji_insert() {
+        let mut state = AppState::new(make_snap(vec![e_window("x")]));
+        state.set_filter('🎉');
+        assert_eq!(state.filter_cursor, 4);
+    }
+
+    #[test]
+    fn mixed_multibyte_sequence() {
+        let mut state = AppState::new(make_snap(vec![e_window("x")]));
+        state.set_filter('a');
+        state.set_filter('ư');
+        state.set_filter('ộ');
+        state.set_filter('🎉');
+        assert_eq!(state.filter, "aưộ🎉");
+        assert_eq!(state.filter_cursor, 10);
+    }
+
+    #[test]
+    fn cursor_left_across_mixed() {
+        let mut state = AppState::new(make_snap(vec![e_window("x")]));
+        state.set_filter('a');
+        state.set_filter('ư');
+        state.set_filter('ộ');
+        assert_eq!(state.filter_cursor, 6);
+        state.move_filter_cursor_left(); // ộ(3) → 3
+        assert_eq!(state.filter_cursor, 3);
+        state.move_filter_cursor_left(); // ư(2) → 1
+        assert_eq!(state.filter_cursor, 1);
+        state.move_filter_cursor_left(); // a(1) → 0
+        assert_eq!(state.filter_cursor, 0);
+    }
+
+    #[test]
+    fn cursor_right_across_mixed() {
+        let mut state = AppState::new(make_snap(vec![e_window("x")]));
+        state.set_filter('a');
+        state.set_filter('ư');
+        state.set_filter('ộ');
+        state.filter_cursor = 0;
+        state.move_filter_cursor_right(); // a(1) → 1
+        assert_eq!(state.filter_cursor, 1);
+        state.move_filter_cursor_right(); // ư(2) → 3
+        assert_eq!(state.filter_cursor, 3);
+        state.move_filter_cursor_right(); // ộ(3) → 6
+        assert_eq!(state.filter_cursor, 6);
+    }
+
+    #[test]
+    fn fuzz_multibyte_cursor_ops() {
+        let chars: &[char] = &['a', 'ư', 'ơ', 'ộ', 'ế', '中', '🎉', '🦀'];
+        let mut seed: u64 = 42;
+        let mut rng = || -> u64 {
+            seed ^= seed << 13;
+            seed ^= seed >> 7;
+            seed ^= seed << 17;
+            seed
+        };
+        let mut state = AppState::new(make_snap(vec![e_window("x")]));
+        for _ in 0..500 {
+            match rng() % 6 {
+                0 => state.insert_filter_char(chars[(rng() as usize) % chars.len()]),
+                1 => state.backspace_filter(),
+                2 => state.move_filter_cursor_left(),
+                3 => state.move_filter_cursor_right(),
+                4 => state.clear_filter(),
+                5 => {
+                    for _ in 0..(rng() % 6) {
+                        state.move_filter_cursor_left();
+                    }
+                    state.insert_filter_char(chars[(rng() as usize) % chars.len()]);
+                }
+                _ => unreachable!(),
+            }
+        }
+        assert!(state.filter.is_char_boundary(state.filter_cursor));
+        assert!(state.filter_cursor <= state.filter.len());
     }
 }
