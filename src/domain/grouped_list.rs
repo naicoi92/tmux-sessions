@@ -295,4 +295,61 @@ mod tests {
         let actionable_count = rows.iter().filter(|r| r.is_actionable()).count();
         assert_eq!(actionable_count, 1, "Should match only 'Makefile' window");
     }
+
+    #[test]
+    fn e2e_vietnamese_search_with_indices() {
+        // Full pipeline: Vietnamese entries → fold → nucleo match → real indices
+        let snapshot = Snapshot::new(
+            vec![
+                Entry::zoxide("tư-vấn".into(), "/proj/tu-van".into()),
+                Entry::zoxide("giải pháp".into(), "/proj/giai-phap".into()),
+                Entry::zoxide("alpha".into(), "/proj/alpha".into()),
+            ],
+            "s".into(),
+            "s:0".into(),
+        );
+        let grouped = GroupedList::from_snapshot(&snapshot);
+        let matcher = NucleoMatcher::new();
+
+        let rows = grouped.filtered_rows("tư", &matcher);
+        let actionable: Vec<_> = rows.iter().filter(|r| r.is_actionable()).collect();
+        assert_eq!(actionable.len(), 1);
+
+        let entry = actionable[0].actionable_entry().unwrap();
+        assert!(entry.display.contains("tư-vấn"));
+
+        // Nucleo returned real indices into the display string
+        assert!(!entry.matched_indices.is_empty());
+        for &idx in &entry.matched_indices {
+            let idx = idx as usize;
+            assert!(
+                idx < entry.display.chars().count(),
+                "index {} out of bounds for display {:?}",
+                idx,
+                entry.display
+            );
+        }
+    }
+
+    #[test]
+    fn e2e_ascii_search_finds_vietnamese_entry() {
+        let snapshot = Snapshot::new(
+            vec![
+                Entry::zoxide("giải pháp".into(), "/proj/giai-phap".into()),
+                Entry::zoxide("alpha".into(), "/proj/alpha".into()),
+            ],
+            "s".into(),
+            "s:0".into(),
+        );
+        let grouped = GroupedList::from_snapshot(&snapshot);
+        let matcher = NucleoMatcher::new();
+
+        let rows = grouped.filtered_rows("giai", &matcher);
+        let actionable: Vec<_> = rows.iter().filter(|r| r.is_actionable()).collect();
+        assert_eq!(actionable.len(), 1);
+
+        let entry = actionable[0].actionable_entry().unwrap();
+        assert!(entry.display.contains("giải pháp"));
+        assert!(!entry.matched_indices.is_empty());
+    }
 }

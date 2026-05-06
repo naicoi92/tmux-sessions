@@ -43,7 +43,7 @@ pub fn map_key_to_action(key: KeyEvent) -> HandledAction {
         (KeyModifiers::NONE, KeyCode::Backspace) => HandledAction::Backspace,
         (KeyModifiers::NONE, KeyCode::Left) => HandledAction::FilterCursorLeft,
         (KeyModifiers::NONE, KeyCode::Right) => HandledAction::FilterCursorRight,
-        (KeyModifiers::NONE, KeyCode::Char(c)) => HandledAction::FilterChar(c),
+        (KeyModifiers::NONE, KeyCode::Char(c)) if !c.is_control() => HandledAction::FilterChar(c),
         _ => HandledAction::None,
     }
 }
@@ -164,6 +164,38 @@ mod tests {
     #[test]
     fn ctrl_r_maps_to_reload() {
         assert_eq!(map_key_to_action(ctrl_char('r')), HandledAction::Reload);
+    }
+
+    #[test]
+    fn null_char_maps_to_none() {
+        assert_eq!(
+            map_key_to_action(key(KeyCode::Char('\0'))),
+            HandledAction::None
+        );
+    }
+
+    #[test]
+    fn esc_char_maps_to_none() {
+        assert_eq!(
+            map_key_to_action(key(KeyCode::Char('\x1b'))),
+            HandledAction::None
+        );
+    }
+
+    #[test]
+    fn del_char_maps_to_none() {
+        assert_eq!(
+            map_key_to_action(key(KeyCode::Char('\x7f'))),
+            HandledAction::None
+        );
+    }
+
+    #[test]
+    fn vietnamese_char_maps_to_filter() {
+        assert_eq!(
+            map_key_to_action(key(KeyCode::Char('ư'))),
+            HandledAction::FilterChar('ư')
+        );
     }
 
     #[test]

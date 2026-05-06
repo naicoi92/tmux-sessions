@@ -89,13 +89,17 @@ pub(super) fn restore_selection(
 
 pub(super) fn insert_filter_char(filter: &mut String, filter_cursor: &mut usize, ch: char) {
     filter.insert(*filter_cursor, ch);
-    *filter_cursor += 1;
+    *filter_cursor += ch.len_utf8();
 }
 
 pub(super) fn delete_filter_char(filter: &mut String, filter_cursor: &mut usize) {
     if *filter_cursor > 0 && !filter.is_empty() {
-        filter.remove(*filter_cursor - 1);
-        *filter_cursor -= 1;
+        let before = &filter[..*filter_cursor];
+        if let Some(c) = before.chars().last() {
+            let pos = *filter_cursor - c.len_utf8();
+            filter.remove(pos);
+            *filter_cursor = pos;
+        }
     }
 }
 
