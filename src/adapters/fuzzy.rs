@@ -334,7 +334,8 @@ mod tests {
         assert!(
             original_chars > folded_chars,
             "decomposed display ({}) should have more chars than folded ({})",
-            original_chars, folded_chars
+            original_chars,
+            folded_chars
         );
 
         // Match should still work (fold makes it ASCII-compatible)
