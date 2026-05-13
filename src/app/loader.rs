@@ -6,12 +6,12 @@ use crate::domain::snapshot::Snapshot;
 use crate::domain::sort::build_sorted_board;
 use std::collections::HashMap;
 
-const DEFAULT_ZOXIDE_LIMIT: usize = 100;
+const DEFAULT_VISIBLE_ZOXIDE_LIMIT: usize = 100;
 
 pub struct SnapshotLoader {
     tmux: Box<dyn TmuxSource>,
     zoxide: Box<dyn ZoxideSource>,
-    zoxide_limit: usize,
+    visible_zoxide_limit: usize,
 }
 
 impl SnapshotLoader {
@@ -19,13 +19,18 @@ impl SnapshotLoader {
         Self {
             tmux,
             zoxide,
-            zoxide_limit: DEFAULT_ZOXIDE_LIMIT,
+            visible_zoxide_limit: DEFAULT_VISIBLE_ZOXIDE_LIMIT,
         }
     }
 
-    pub fn with_zoxide_limit(mut self, limit: usize) -> Self {
-        self.zoxide_limit = limit;
+    pub fn with_visible_zoxide_limit(mut self, limit: usize) -> Self {
+        self.visible_zoxide_limit = limit;
         self
+    }
+
+    /// Returns the configured visible zoxide limit.
+    pub fn get_visible_zoxide_limit(&self) -> usize {
+        self.visible_zoxide_limit
     }
 
     pub fn load(&self) -> Result<Snapshot, AdapterError> {
@@ -54,10 +59,7 @@ impl SnapshotLoader {
             &session_activities,
         );
 
-        let zoxide_entries = self
-            .zoxide
-            .directories(self.zoxide_limit)
-            .unwrap_or_default();
+        let zoxide_entries = self.zoxide.directories().unwrap_or_default();
 
         let entries = build_sorted_board(
             &current_session,
@@ -186,7 +188,7 @@ mod tests {
     }
 
     #[test]
-    fn zoxide_limit_is_respected() {
+    fn loader_loads_full_zoxide_corpus() {
         let loader = make_loader(
             vec![],
             vec![],
@@ -194,12 +196,11 @@ mod tests {
             "s1",
             "0",
         )
-        .with_zoxide_limit(2);
+        .with_visible_zoxide_limit(2);
         let snap = loader.load().unwrap();
-
-        assert_eq!(snap.len(), 2);
+        // Snapshot holds all zoxide entries; visible limit applies at UI layer
+        assert_eq!(snap.len(), 3);
     }
-
     #[test]
     fn production_loader_creates_without_panic() {
         let _loader = create_production_loader();

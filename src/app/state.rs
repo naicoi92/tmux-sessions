@@ -65,6 +65,12 @@ impl AppState {
         &self.grouped_list
     }
 
+    pub fn set_visible_zoxide_limit(&mut self, limit: usize) {
+        self.grouped_list = GroupedList::with_limit(&self.snapshot, limit);
+        self.rebuild_filtered_rows_cache();
+        self.move_selection_top();
+    }
+
     pub fn filtered_rows(&self) -> &[GroupedRow] {
         &self.filtered_rows_cache
     }
@@ -78,8 +84,9 @@ impl AppState {
     pub fn replace_snapshot(&mut self, snapshot: Snapshot) {
         let previous_target = self.current_selected_target();
         let previous_visible_index = self.selected_visible_index();
+        let current_limit = self.grouped_list.get_visible_zoxide_limit();
         self.snapshot = snapshot;
-        self.grouped_list = GroupedList::from_snapshot(&self.snapshot);
+        self.grouped_list = GroupedList::with_limit(&self.snapshot, current_limit);
         self.rebuild_filtered_rows_cache();
         self.restore_selection(previous_target, previous_visible_index);
     }

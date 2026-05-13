@@ -220,7 +220,7 @@ fn full_board_sort_with_fake_adapters() {
     );
 
     let zoxide = FakeZoxideSource::with_dirs(&["/home/project1", "/home/project2"]);
-    let zoxide_entries = zoxide.directories(10).unwrap();
+    let zoxide_entries = zoxide.directories().unwrap();
 
     let board = build_sorted_board(
         &current_session,

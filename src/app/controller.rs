@@ -36,8 +36,10 @@ impl AppController {
         let preview_tmux = preview_tmux_factory();
         let generator = PreviewGenerator::with_factory(preview_tmux, preview_tmux_factory);
         let preview_loader = AsyncPreviewLoader::new(generator);
+        let mut state = AppState::new(snapshot);
+        state.set_visible_zoxide_limit(loader.get_visible_zoxide_limit());
         Self {
-            state: AppState::new(snapshot),
+            state,
             loader,
             tmux,
             preview_loader,

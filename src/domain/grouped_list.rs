@@ -44,10 +44,32 @@ impl GroupedRow {
 #[derive(Debug, Clone, Default)]
 pub struct GroupedList {
     pub items: Vec<GroupedListItem>,
+    visible_zoxide_limit: usize,
 }
 
 impl GroupedList {
     pub fn from_snapshot(snapshot: &Snapshot) -> Self {
+        Self::with_limit(snapshot, usize::MAX)
+    }
+
+    pub fn with_limit(snapshot: &Snapshot, visible_zoxide_limit: usize) -> Self {
+        Self {
+            items: Self::build_items(snapshot),
+            visible_zoxide_limit,
+        }
+    }
+
+    /// Returns the current visible zoxide limit.
+    pub fn get_visible_zoxide_limit(&self) -> usize {
+        self.visible_zoxide_limit
+    }
+
+    pub fn with_visible_zoxide_limit(mut self, limit: usize) -> Self {
+        self.visible_zoxide_limit = limit;
+        self
+    }
+
+    fn build_items(snapshot: &Snapshot) -> Vec<GroupedListItem> {
         let mut session_counts: HashMap<String, usize> = HashMap::new();
         let mut path_by_session: HashMap<String, String> = HashMap::new();
         for entry in &snapshot.entries {
@@ -159,7 +181,7 @@ impl GroupedList {
             }
         }
 
-        Self { items }
+        items
     }
 
     pub fn filtered_rows(&self, filter: &str, matcher: &NucleoMatcher) -> Vec<GroupedRow> {
@@ -256,6 +278,7 @@ impl GroupedList {
 
     fn all_rows(&self) -> Vec<GroupedRow> {
         let mut rows = Vec::new();
+        let mut zoxide_count = 0;
         for item in &self.items {
             match item {
                 GroupedListItem::SessionGroup {
@@ -273,7 +296,10 @@ impl GroupedList {
                     rows.push(GroupedRow::StandaloneSession(entry.clone()));
                 }
                 GroupedListItem::ZoxideEntry(entry) => {
-                    rows.push(GroupedRow::ZoxideEntry(entry.clone()));
+                    if zoxide_count < self.visible_zoxide_limit {
+                        rows.push(GroupedRow::ZoxideEntry(entry.clone()));
+                        zoxide_count += 1;
+                    }
                 }
             }
         }
@@ -619,5 +645,86 @@ mod tests {
             "expected henullcom/public in {:?}",
             displays[1]
         );
+    }
+
+    #[test]
+    fn visible_zoxide_limit_truncates_when_filter_empty() {
+        // 3 zoxide entries, visible limit 2 → only 2 visible without filter
+        let snapshot = Snapshot::new(
+            vec![
+                Entry::zoxide("proj1".into(), "/home/user/proj1".into()),
+                Entry::zoxide("proj2".into(), "/home/user/proj2".into()),
+                Entry::zoxide("deep".into(), "/home/user/very/deep/path".into()),
+            ],
+            "s".into(),
+            "s:0".into(),
+        );
+        let grouped = GroupedList::with_limit(&snapshot, 2);
+        let matcher = NucleoMatcher::new();
+
+        // Without filter: only 2 zoxide rows
+        let all = grouped.filtered_rows("", &matcher);
+        let zoxide_count = all
+            .iter()
+            .filter(|r| matches!(r, GroupedRow::ZoxideEntry(_)))
+            .count();
+        assert_eq!(
+            zoxide_count, 2,
+            "Empty filter should show only 2 zoxide entries"
+        );
+
+        // With filter matching the 3rd zoxide entry's display
+        let filtered = grouped.filtered_rows("deep", &matcher);
+        let zoxide_filtered: Vec<&GroupedRow> = filtered
+            .iter()
+            .filter(|r| matches!(r, GroupedRow::ZoxideEntry(_)))
+            .collect();
+        assert_eq!(
+            zoxide_filtered.len(),
+            1,
+            "Filter 'deep' should find the 3rd entry"
+        );
+        if let GroupedRow::ZoxideEntry(e) = zoxide_filtered[0] {
+            assert_eq!(e.path, "/home/user/very/deep/path");
+        }
+    }
+
+    #[test]
+    fn visible_zoxide_filter_beyond_limit_by_display() {
+        // 3 zoxide entries, visible limit 2, filter matching 3rd entry's display
+        let snapshot = Snapshot::new(
+            vec![
+                Entry::zoxide("alpha".into(), "/home/alpha".into()),
+                Entry::zoxide("beta".into(), "/home/beta".into()),
+                Entry::zoxide("gamma".into(), "/home/gamma".into()),
+            ],
+            "s".into(),
+            "s:0".into(),
+        );
+        let grouped = GroupedList::with_limit(&snapshot, 2);
+        let matcher = NucleoMatcher::new();
+
+        // Without filter: only 2 visible
+        let all = grouped.filtered_rows("", &matcher);
+        let visible_zoxide: Vec<&GroupedRow> = all
+            .iter()
+            .filter(|r| matches!(r, GroupedRow::ZoxideEntry(_)))
+            .collect();
+        assert_eq!(visible_zoxide.len(), 2);
+
+        // Filter by display name of 3rd entry (beyond visible limit)
+        let filtered = grouped.filtered_rows("gamma", &matcher);
+        let zoxide_filtered: Vec<&GroupedRow> = filtered
+            .iter()
+            .filter(|r| matches!(r, GroupedRow::ZoxideEntry(_)))
+            .collect();
+        assert_eq!(
+            zoxide_filtered.len(),
+            1,
+            "Filter 'gamma' should match the 3rd entry by display"
+        );
+        if let GroupedRow::ZoxideEntry(e) = zoxide_filtered[0] {
+            assert_eq!(e.path, "/home/gamma");
+        }
     }
 }

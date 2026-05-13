@@ -4,8 +4,8 @@ use crate::domain::path_name::basename_from_path;
 use std::process::Command;
 
 pub trait ZoxideSource {
-    fn query(&self, limit: usize) -> Result<Vec<String>, AdapterError>;
-    fn directories(&self, limit: usize) -> Result<Vec<Entry>, AdapterError>;
+    fn query(&self) -> Result<Vec<String>, AdapterError>;
+    fn directories(&self) -> Result<Vec<Entry>, AdapterError>;
 }
 
 pub struct ZoxideAdapter;
@@ -36,7 +36,7 @@ impl Default for ZoxideAdapter {
 }
 
 impl ZoxideSource for ZoxideAdapter {
-    fn query(&self, limit: usize) -> Result<Vec<String>, AdapterError> {
+    fn query(&self) -> Result<Vec<String>, AdapterError> {
         let output = Command::new("zoxide")
             .args(["query", "-l"])
             .output()
@@ -60,13 +60,12 @@ impl ZoxideSource for ZoxideAdapter {
             .lines()
             .filter(|line| !line.trim().is_empty())
             .map(String::from)
-            .take(limit)
             .collect();
         Ok(paths)
     }
 
-    fn directories(&self, limit: usize) -> Result<Vec<Entry>, AdapterError> {
-        let paths = self.query(limit)?;
+    fn directories(&self) -> Result<Vec<Entry>, AdapterError> {
+        let paths = self.query()?;
         Ok(paths
             .into_iter()
             .map(|path| {
@@ -100,15 +99,14 @@ impl Default for FakeZoxideSource {
 }
 
 impl ZoxideSource for FakeZoxideSource {
-    fn query(&self, _limit: usize) -> Result<Vec<String>, AdapterError> {
+    fn query(&self) -> Result<Vec<String>, AdapterError> {
         Ok(self.paths.clone())
     }
 
-    fn directories(&self, limit: usize) -> Result<Vec<Entry>, AdapterError> {
+    fn directories(&self) -> Result<Vec<Entry>, AdapterError> {
         let entries: Vec<Entry> = self
             .paths
             .iter()
-            .take(limit)
             .map(|path| {
                 let name = basename_from_path(path);
                 Entry::zoxide(name, path.clone())
@@ -144,22 +142,22 @@ mod tests {
     #[test]
     fn fake_zoxide_returns_configured_paths() {
         let fake = FakeZoxideSource::with_dirs(&["/home/a", "/home/b"]);
-        let entries = fake.directories(10).unwrap();
+        let entries = fake.directories().unwrap();
         assert_eq!(entries.len(), 2);
         assert_eq!(entries[0].target, "/home/a");
     }
 
     #[test]
-    fn fake_zoxide_respects_limit() {
+    fn fake_zoxide_returns_all_paths() {
         let fake = FakeZoxideSource::with_dirs(&["/a", "/b", "/c"]);
-        let entries = fake.directories(2).unwrap();
-        assert_eq!(entries.len(), 2);
+        let entries = fake.directories().unwrap();
+        assert_eq!(entries.len(), 3);
     }
 
     #[test]
     fn fake_zoxide_empty() {
         let fake = FakeZoxideSource::new();
-        let entries = fake.directories(10).unwrap();
+        let entries = fake.directories().unwrap();
         assert!(entries.is_empty());
     }
 }

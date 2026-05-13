@@ -177,17 +177,18 @@ fn integration_completely_empty_returns_valid_snapshot() {
 }
 
 #[test]
-fn integration_zoxide_limit_truncates() {
+fn integration_zoxide_loads_full_corpus() {
     let loader = build_loader(
         vec![],
         vec!["/a".into(), "/b".into(), "/c".into(), "/d".into()],
         "s1",
         "0",
     )
-    .with_zoxide_limit(2);
+    .with_visible_zoxide_limit(2);
 
     let snap = loader.load().unwrap();
-    assert_eq!(snap.len(), 2);
+    // Snapshot now holds all zoxide entries (limit applies at UI layer only)
+    assert_eq!(snap.len(), 4);
 }
 
 #[test]
