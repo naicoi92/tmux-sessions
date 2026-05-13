@@ -49,16 +49,62 @@ fn execute_window_goto(target: &str, tmux: &dyn TmuxSource) -> Result<ExitReason
 
 fn execute_zoxide_goto(path: &str, tmux: &dyn TmuxSource) -> Result<ExitReason, ActionError> {
     let windows = tmux.list_windows().unwrap_or_default();
-    let sessions = tmux.list_sessions().unwrap_or_default();
-    let existing_names: Vec<String> = sessions.iter().map(|s| s.session_name.clone()).collect();
 
-    match resolve_zoxide_action(path, &windows, &existing_names) {
-        ZoxideAction::SwitchToExisting { target } => execute_window_goto(&target, tmux),
-        ZoxideAction::CreateNewSession { name } => {
+    // Step 1: If any existing window matches the path, switch to it.
+    // This only needs window data, not session listing.
+    if let Some(w) = windows.iter().find(|w| paths_match(&w.window_path, path)) {
+        let target = format!("{}:{}", w.session_name, w.window_index);
+        return execute_window_goto(&target, tmux);
+    }
+
+    // Step 2: No path match. Need session names for collision-safe creation.
+    let sessions = tmux.list_sessions();
+    match &sessions {
+        Ok(s) => {
+            let existing_names: Vec<String> = s.iter().map(|s| s.session_name.clone()).collect();
+            let base = sanitize_session_name(&extract_session_name(path));
+            let _name = resolve_session_name(&base, &existing_names);
+            // resolve_session_name takes basename, but we pass the raw basename
+            // Need to re-check: resolve_session_name expects path now
+            let name = resolve_session_name(path, &existing_names);
             tmux.new_session(&name, path)?;
             tmux.switch_client(&name)?;
             Ok(ExitReason::SwitchTo(name))
         }
+        Err(_) => {
+            // Can't list sessions → fallback to has_session check
+            execute_zoxide_goto_fallback(path, tmux)
+        }
+    }
+}
+
+/// Fallback when tmux session discovery fails.
+/// Fallback when tmux session listing fails.
+/// Uses `has_session` to find a free name — never merges distinct paths into one session.
+fn execute_zoxide_goto_fallback(
+    path: &str,
+    tmux: &dyn TmuxSource,
+) -> Result<ExitReason, ActionError> {
+    let base = sanitize_session_name(&extract_session_name(path));
+    let name = resolve_fallback_name(&base, tmux);
+
+    tmux.new_session(&name, path)?;
+    tmux.switch_client(&name)?;
+    Ok(ExitReason::SwitchTo(name))
+}
+
+/// Find a free session name using has_session, without session listing.
+fn resolve_fallback_name(base: &str, tmux: &dyn TmuxSource) -> String {
+    if !tmux.has_session(base).unwrap_or(false) {
+        return base.to_string();
+    }
+    let mut suffix: u32 = 1;
+    loop {
+        let candidate = format!("{base}-{suffix}");
+        if !tmux.has_session(&candidate).unwrap_or(false) {
+            return candidate;
+        }
+        suffix += 1;
     }
 }
 
