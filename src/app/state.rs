@@ -604,10 +604,7 @@ mod tests {
         assert_eq!(state.selected_entry().unwrap().display, "  ◆ p [0]: first");
         let mut state = state;
         state.selected_index = 1;
-        assert_eq!(
-            state.selected_entry().unwrap().display,
-            "  ◆ p [0]: second"
-        );
+        assert_eq!(state.selected_entry().unwrap().display, "  ◆ p [0]: second");
     }
 
     #[test]

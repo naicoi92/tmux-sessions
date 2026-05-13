@@ -461,7 +461,7 @@ fn grouped_existing_switch_flow_resolves_actionable_child_target() {
 }
 
 #[test]
-fn zoxide_create_flow_uses_gap_filling_name_when_sessions_exist() {
+fn zoxide_create_flow_uses_window_in_existing_session() {
     let snapshot = Snapshot::new(
         vec![Entry::zoxide("project".into(), "/work/project".into())],
         "s1".into(),
@@ -472,6 +472,7 @@ fn zoxide_create_flow_uses_gap_filling_name_when_sessions_exist() {
         .build_enter_action()
         .expect("zoxide action must exist");
 
+    // Sessions "project" and "project-1" exist → basename "project" matches → create window
     let tmux = RecordingTmuxSource::new(vec![
         RawSession {
             session_name: "project".into(),
@@ -486,20 +487,19 @@ fn zoxide_create_flow_uses_gap_filling_name_when_sessions_exist() {
     ]);
 
     let exit = ActionExecutor::execute(&action, &tmux).expect("zoxide goto should execute");
-    // No window matches path → collision-safe name "project-2"
     assert_eq!(
         exit,
-        tmux_sessions::app::executor::ExitReason::SwitchTo("project-2".into())
+        tmux_sessions::app::executor::ExitReason::SwitchTo("project:99".into())
     );
     assert_eq!(
         tmux.calls(),
         vec![
             RecordedCall::ListSessions,
-            RecordedCall::NewSession {
-                name: "project-2".into(),
-                path: "/work/project".into(),
+            RecordedCall::NewWindow {
+                session: "project".into(),
+                path: "/work/project".into()
             },
-            RecordedCall::SwitchClient("project-2".into()),
+            RecordedCall::SwitchClient("project:99".into()),
         ]
     );
 }
@@ -693,7 +693,7 @@ fn zoxide_create_flow_surfaces_new_session_error() {
 }
 
 #[test]
-fn zoxide_create_flow_surfaces_collision_session_error() {
+fn zoxide_create_flow_surfaces_window_creation_error() {
     let snapshot = Snapshot::new(
         vec![Entry::zoxide("project".into(), "/work/project".into())],
         "s1".into(),
@@ -704,25 +704,25 @@ fn zoxide_create_flow_surfaces_collision_session_error() {
         .build_enter_action()
         .expect("zoxide action must exist");
 
-    // Session "project" exists, no window matches path → creates "project-1"
+    // Session "project" exists → basename matches → try new_window, which fails
     let tmux = RecordingTmuxSource::new_with_failures(
         vec![RawSession {
             session_name: "project".into(),
             attached: false,
             session_activity: None,
         }],
-        vec![RecordedCall::NewSession {
-            name: "project-1".into(),
+        vec![RecordedCall::NewWindow {
+            session: "project".into(),
             path: "/work/project".into(),
         }],
     );
     let err =
-        ActionExecutor::execute(&action, &tmux).expect_err("new session failure should surface");
+        ActionExecutor::execute(&action, &tmux).expect_err("new window failure should surface");
 
     match err {
         ActionError::GotoFailed { target, detail } => {
-            assert_eq!(target, "project-1");
-            assert!(detail.contains("new-session"));
+            assert_eq!(target, "project");
+            assert!(detail.contains("new-window"));
         }
         other => panic!("expected GotoFailed, got: {other:?}"),
     }

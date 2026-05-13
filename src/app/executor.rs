@@ -48,52 +48,47 @@ fn execute_window_goto(target: &str, tmux: &dyn TmuxSource) -> Result<ExitReason
 }
 
 fn execute_zoxide_goto(path: &str, tmux: &dyn TmuxSource) -> Result<ExitReason, ActionError> {
-    let windows = tmux.list_windows().unwrap_or_default();
-
-    if let Some(w) = windows.iter().find(|w| paths_match(&w.window_path, path)) {
-        let target = format!("{}:{}", w.session_name, w.window_index);
-        return execute_window_goto(&target, tmux);
-    }
+    let base = sanitize_session_name(&extract_session_name(path));
 
     match tmux.list_sessions() {
         Ok(sessions) => {
             let existing_names: Vec<String> =
                 sessions.iter().map(|s| s.session_name.clone()).collect();
-            let name = resolve_session_name(path, &existing_names);
-            tmux.new_session(&name, path)?;
-            tmux.switch_client(&name)?;
-            Ok(ExitReason::SwitchTo(name))
+
+            if existing_names.iter().any(|s| s == &base) {
+                // Session exists → create new window in it
+                let target = tmux.new_window(&base, path)?;
+                tmux.switch_client(&target)?;
+                Ok(ExitReason::SwitchTo(target))
+            } else {
+                // No session yet → create new one
+                let name = resolve_session_name(path, &existing_names);
+                tmux.new_session(&name, path)?;
+                tmux.switch_client(&name)?;
+                Ok(ExitReason::SwitchTo(name))
+            }
         }
         Err(_) => execute_zoxide_goto_fallback(path, tmux),
     }
 }
 
 /// Fallback when tmux session listing fails.
-/// Uses `has_session` to find a free name — never merges distinct paths into one session.
+/// If session with basename already exists: create window in it.
+/// Otherwise: create new session.
 fn execute_zoxide_goto_fallback(
     path: &str,
     tmux: &dyn TmuxSource,
 ) -> Result<ExitReason, ActionError> {
     let base = sanitize_session_name(&extract_session_name(path));
-    let name = resolve_fallback_name(&base, tmux);
 
-    tmux.new_session(&name, path)?;
-    tmux.switch_client(&name)?;
-    Ok(ExitReason::SwitchTo(name))
-}
-
-/// Find a free session name using has_session, without session listing.
-fn resolve_fallback_name(base: &str, tmux: &dyn TmuxSource) -> String {
-    if !tmux.has_session(base).unwrap_or(false) {
-        return base.to_string();
-    }
-    let mut suffix: u32 = 1;
-    loop {
-        let candidate = format!("{base}-{suffix}");
-        if !tmux.has_session(&candidate).unwrap_or(false) {
-            return candidate;
-        }
-        suffix += 1;
+    if tmux.has_session(&base).unwrap_or(false) {
+        let target = tmux.new_window(&base, path)?;
+        tmux.switch_client(&target)?;
+        Ok(ExitReason::SwitchTo(target))
+    } else {
+        tmux.new_session(&base, path)?;
+        tmux.switch_client(&base)?;
+        Ok(ExitReason::SwitchTo(base))
     }
 }
 
@@ -164,39 +159,30 @@ pub fn sanitize_session_name(basename: &str) -> String {
     }
 }
 
-/// Decision for zoxide goto: switch to existing window or create new session.
+/// Decision for zoxide goto: create window in existing session or create new session.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ZoxideAction {
-    /// An existing tmux window already works at this path — switch to it.
-    SwitchToExisting { target: String },
-    /// No existing window matches — create a new session.
+    /// Session with this basename already exists — create a new window in it.
+    CreateWindowInSession { session: String, path: String },
+    /// No session with this basename — create a new session.
     CreateNewSession { name: String },
-}
-
-/// Compare two filesystem paths for equality.
-/// Direct string comparison first; falls back to `canonicalize` for symlinks.
-fn paths_match(a: &str, b: &str) -> bool {
-    if a == b {
-        return true;
-    }
-    match (std::fs::canonicalize(a), std::fs::canonicalize(b)) {
-        (Ok(ca), Ok(cb)) => ca == cb,
-        _ => false,
-    }
 }
 
 /// Resolve what action to take when user selects a zoxide directory.
 ///
-/// 1. If any existing tmux window's `pane_current_path` matches `path`, switch to it.
-/// 2. Otherwise, create a new session with a collision-safe name.
+/// 1. If a tmux session with this basename already exists → create window in it.
+/// 2. Otherwise → create a new session with a collision-safe name.
 pub fn resolve_zoxide_action(
     path: &str,
-    windows: &[RawWindow],
+    _windows: &[RawWindow],
     existing_session_names: &[String],
 ) -> ZoxideAction {
-    if let Some(w) = windows.iter().find(|w| paths_match(&w.window_path, path)) {
-        return ZoxideAction::SwitchToExisting {
-            target: format!("{}:{}", w.session_name, w.window_index),
+    let base = sanitize_session_name(&extract_session_name(path));
+
+    if existing_session_names.iter().any(|s| s == &base) {
+        return ZoxideAction::CreateWindowInSession {
+            session: base,
+            path: path.to_string(),
         };
     }
 
@@ -225,7 +211,7 @@ pub fn resolve_session_name(path: &str, existing: &[String]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::adapters::tmux::{FakeTmuxSource, RawSession, RawWindow};
+    use crate::adapters::tmux::{FakeTmuxSource, RawSession};
 
     #[test]
     fn extract_basename() {
@@ -341,18 +327,11 @@ mod tests {
     #[test]
     fn zoxide_goto_existing_session_creates_window_in_that_session() {
         let mut tmux = FakeTmuxSource::new();
-        // Existing session "myproject" with a window at the same path
+        // Existing session "myproject"
         tmux.sessions = vec![RawSession {
             session_name: "myproject".into(),
             attached: false,
             session_activity: None,
-        }];
-        tmux.windows = vec![RawWindow {
-            session_name: "myproject".into(),
-            window_index: "0".into(),
-            window_name: "work".into(),
-            window_path: "/home/user/myproject".into(),
-            window_activity: None,
         }];
         tmux.existing_sessions = vec!["myproject".into()];
         tmux.current_session_name = "other-session".into();
@@ -361,8 +340,8 @@ mod tests {
             Action::goto_zoxide("/home/user/myproject".into(), "/home/user/myproject".into());
         let result = ActionExecutor::execute(&action, &tmux).unwrap();
 
-        // Path matches existing window → switch to it
-        assert_eq!(result, ExitReason::SwitchTo("myproject:0".into()));
+        // Session basename match → new window in it (fake returns session:99)
+        assert_eq!(result, ExitReason::SwitchTo("myproject:99".into()));
     }
 
     #[test]
@@ -382,7 +361,7 @@ mod tests {
     #[test]
     fn zoxide_goto_sanitizes_session_name() {
         let mut tmux = FakeTmuxSource::new();
-        // Session "_dotfiles" exists but no window at that path → collision-safe name
+        // Session "_dotfiles" exists → create window in it
         tmux.sessions = vec![RawSession {
             session_name: "_dotfiles".into(),
             attached: false,
@@ -395,6 +374,7 @@ mod tests {
             Action::goto_zoxide("/home/user/.dotfiles".into(), "/home/user/.dotfiles".into());
         let result = ActionExecutor::execute(&action, &tmux).unwrap();
 
-        assert_eq!(result, ExitReason::SwitchTo("_dotfiles-1".into()));
+        // Session exists → create window in it
+        assert_eq!(result, ExitReason::SwitchTo("_dotfiles:99".into()));
     }
 }

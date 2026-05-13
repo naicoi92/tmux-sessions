@@ -89,7 +89,34 @@ impl GroupedList {
 
         let mut items: Vec<GroupedListItem> = Vec::new();
         let mut group_index_by_session: HashMap<String, usize> = HashMap::new();
-        for entry in &snapshot.entries {
+
+        // Disambiguate zoxide display names when multiple entries share same display text
+        let zoxide_displays: Vec<String> = snapshot
+            .entries
+            .iter()
+            .filter(|e| e.entry_type == EntryType::Zoxide)
+            .map(|e| e.display.trim().to_string())
+            .collect();
+        let mut zoxide_new_display: HashMap<usize, String> = HashMap::new();
+        for (i, entry) in snapshot.entries.iter().enumerate() {
+            if entry.entry_type == EntryType::Zoxide {
+                let trimmed = entry.display.trim().to_string();
+                let collision_count = zoxide_displays.iter().filter(|d| **d == trimmed).count();
+                if collision_count > 1 {
+                    let all_paths: Vec<&str> = snapshot
+                        .entries
+                        .iter()
+                        .filter(|e| e.entry_type == EntryType::Zoxide)
+                        .map(|e| e.path.as_str())
+                        .collect();
+                    let display_name =
+                        crate::domain::path_name::disambiguate_name(&entry.path, &all_paths);
+                    zoxide_new_display.insert(i, format!("\u{25a4} {}", display_name));
+                }
+            }
+        }
+
+        for (i, entry) in snapshot.entries.iter().enumerate() {
             match entry.entry_type {
                 EntryType::Window => {
                     let Some(session) = entry.session_name.clone() else {
@@ -122,7 +149,13 @@ impl GroupedList {
                         });
                     }
                 }
-                EntryType::Zoxide => items.push(GroupedListItem::ZoxideEntry(entry.clone())),
+                EntryType::Zoxide => {
+                    let mut entry = entry.clone();
+                    if let Some(new_display) = zoxide_new_display.get(&i) {
+                        entry.display = new_display.clone();
+                    }
+                    items.push(GroupedListItem::ZoxideEntry(entry));
+                }
             }
         }
 
@@ -549,6 +582,41 @@ mod tests {
         assert!(
             displays[1].contains("project (side)"),
             "expected 'project (side)' in {:?}",
+            displays[1]
+        );
+    }
+
+    #[test]
+    fn two_zoxide_entries_same_basename_disambiguated() {
+        // Two zoxide entries with same basename "public" → show parent/basename
+        let snapshot = Snapshot::new(
+            vec![
+                Entry::zoxide("public".into(), "/henull2/public".into()),
+                Entry::zoxide("public".into(), "/henullcom/public".into()),
+            ],
+            "s".into(),
+            "s:0".into(),
+        );
+        let grouped = GroupedList::from_snapshot(&snapshot);
+
+        let displays: Vec<&str> = grouped
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                GroupedListItem::ZoxideEntry(e) => Some(e.display.as_str()),
+                _ => None,
+            })
+            .collect();
+
+        assert_eq!(displays.len(), 2);
+        assert!(
+            displays[0].contains("henull2/public"),
+            "expected henull2/public in {:?}",
+            displays[0]
+        );
+        assert!(
+            displays[1].contains("henullcom/public"),
+            "expected henullcom/public in {:?}",
             displays[1]
         );
     }

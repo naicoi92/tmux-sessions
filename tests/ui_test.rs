@@ -371,7 +371,9 @@ fn grouped_list_renders_multi_window_sessions_as_groups() {
     assert_eq!(grouped.items.len(), 1);
 
     match &grouped.items[0] {
-        GroupedListItem::SessionGroup { session, windows, .. } => {
+        GroupedListItem::SessionGroup {
+            session, windows, ..
+        } => {
             assert_eq!(session, "team");
             assert_eq!(windows.len(), 2);
         }
