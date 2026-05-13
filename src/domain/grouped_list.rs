@@ -8,6 +8,7 @@ use crate::domain::snapshot::Snapshot;
 pub enum GroupedListItem {
     SessionGroup {
         session: String,
+        display_name: String,
         windows: Vec<Entry>,
     },
     StandaloneSession(Entry),
@@ -48,10 +49,40 @@ pub struct GroupedList {
 impl GroupedList {
     pub fn from_snapshot(snapshot: &Snapshot) -> Self {
         let mut session_counts: HashMap<String, usize> = HashMap::new();
+        let mut path_by_session: HashMap<String, String> = HashMap::new();
         for entry in &snapshot.entries {
             if entry.entry_type == EntryType::Window {
                 if let Some(session) = &entry.session_name {
                     *session_counts.entry(session.clone()).or_insert(0) += 1;
+                    path_by_session
+                        .entry(session.clone())
+                        .or_insert_with(|| entry.path.clone());
+                }
+            }
+        }
+
+        // Disambiguate display names across unique sessions, not windows.
+        // Multiple windows in one session must not force parent/path display.
+        let all_session_paths: Vec<&str> = path_by_session.values().map(String::as_str).collect();
+        let mut display_by_session: HashMap<String, String> = HashMap::new();
+        for (session, path) in &path_by_session {
+            let display = crate::domain::path_name::disambiguate_name(path, &all_session_paths);
+            display_by_session.insert(session.clone(), display);
+        }
+
+        // When two sessions share the same path, display names collide.
+        // Append tmux session name to distinguish: "project (work-session)".
+        let mut display_counts: HashMap<String, Vec<String>> = HashMap::new();
+        for (session, display) in &display_by_session {
+            display_counts
+                .entry(display.clone())
+                .or_default()
+                .push(session.clone());
+        }
+        for (display, sessions) in &display_counts {
+            if sessions.len() > 1 {
+                for session in sessions {
+                    display_by_session.insert(session.clone(), format!("{display} ({session})"));
                 }
             }
         }
@@ -66,21 +97,28 @@ impl GroupedList {
                     };
                     let count = session_counts.get(&session).copied().unwrap_or(0);
 
+                    let display_name = display_by_session
+                        .get(&session)
+                        .cloned()
+                        .unwrap_or_else(|| session.clone());
+                    let entry = entry.clone().with_display_session_name(&display_name);
+
                     if count <= 1 {
-                        items.push(GroupedListItem::StandaloneSession(entry.clone()));
+                        items.push(GroupedListItem::StandaloneSession(entry));
                         continue;
                     }
 
                     if let Some(&idx) = group_index_by_session.get(&session) {
                         if let GroupedListItem::SessionGroup { windows, .. } = &mut items[idx] {
-                            windows.push(entry.clone());
+                            windows.push(entry);
                         }
                     } else {
                         let new_idx = items.len();
                         group_index_by_session.insert(session.clone(), new_idx);
                         items.push(GroupedListItem::SessionGroup {
                             session,
-                            windows: vec![entry.clone()],
+                            display_name,
+                            windows: vec![entry],
                         });
                     }
                 }
@@ -115,13 +153,17 @@ impl GroupedList {
             );
         }
 
-        let mut session_matches: Vec<(&String, Vec<Entry>)> = Vec::new();
+        let mut session_matches: Vec<(&String, &String, Vec<Entry>)> = Vec::new();
         let mut standalone_matches: Vec<Entry> = Vec::new();
         let mut zoxide_matches: Vec<Entry> = Vec::new();
 
         for item in &self.items {
             match item {
-                GroupedListItem::SessionGroup { session, windows } => {
+                GroupedListItem::SessionGroup {
+                    session,
+                    display_name,
+                    windows,
+                } => {
                     let mut matched_windows: Vec<Entry> = windows
                         .iter()
                         .filter_map(|entry| {
@@ -137,7 +179,7 @@ impl GroupedList {
                                 entry_data.get(&e.target).map(|(s, _)| *s).unwrap_or(0),
                             )
                         });
-                        session_matches.push((session, matched_windows));
+                        session_matches.push((session, display_name, matched_windows));
                     }
                 }
                 GroupedListItem::StandaloneSession(entry) => {
@@ -162,9 +204,9 @@ impl GroupedList {
         });
 
         let mut rows = Vec::new();
-        for (session, windows) in session_matches {
+        for (_session, display_name, windows) in session_matches {
             rows.push(GroupedRow::SessionHeader {
-                session: session.clone(),
+                session: display_name.clone(),
                 window_count: windows.len(),
             });
             rows.extend(windows.into_iter().map(GroupedRow::SessionWindow));
@@ -183,9 +225,13 @@ impl GroupedList {
         let mut rows = Vec::new();
         for item in &self.items {
             match item {
-                GroupedListItem::SessionGroup { session, windows } => {
+                GroupedListItem::SessionGroup {
+                    session: _,
+                    display_name,
+                    windows,
+                } => {
                     rows.push(GroupedRow::SessionHeader {
-                        session: session.clone(),
+                        session: display_name.clone(),
                         window_count: windows.len(),
                     });
                     rows.extend(windows.iter().cloned().map(GroupedRow::SessionWindow));
@@ -250,7 +296,11 @@ mod tests {
         );
         let grouped = GroupedList::from_snapshot(&snapshot);
         match &grouped.items[0] {
-            GroupedListItem::SessionGroup { session, windows } => {
+            GroupedListItem::SessionGroup {
+                session,
+                display_name: _,
+                windows,
+            } => {
                 assert_eq!(session, "s1");
                 assert_eq!(windows.len(), 2);
                 assert_eq!(windows[0].target, "s1:0");
@@ -351,5 +401,155 @@ mod tests {
         let entry = actionable[0].actionable_entry().unwrap();
         assert!(entry.display.contains("giải pháp"));
         assert!(!entry.matched_indices.is_empty());
+    }
+
+    #[test]
+    fn single_session_multi_window_shows_basename_not_path() {
+        // Session "public-api" with 2 windows same basename → display just "public-api"
+        let snapshot = Snapshot::new(
+            vec![
+                Entry::window(
+                    "public-api".into(),
+                    "0".into(),
+                    "editor".into(),
+                    "/Projects/public-api".into(),
+                    SortPriority::CurrentWindow,
+                    true,
+                    None,
+                    None,
+                ),
+                Entry::window(
+                    "public-api".into(),
+                    "1".into(),
+                    "shell".into(),
+                    "/Projects/public-api".into(),
+                    SortPriority::CurrentSessionOtherWindow,
+                    false,
+                    None,
+                    None,
+                ),
+            ],
+            "public-api".into(),
+            "public-api:0".into(),
+        );
+        let grouped = GroupedList::from_snapshot(&snapshot);
+        match &grouped.items[0] {
+            GroupedListItem::SessionGroup {
+                display_name,
+                windows,
+                ..
+            } => {
+                assert_eq!(display_name, "public-api");
+                assert_eq!(windows.len(), 2);
+            }
+            other => panic!("expected SessionGroup, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn two_sessions_same_basename_disambiguate_with_parent() {
+        // Two different sessions with same basename "public" → show parent/basename
+        let snapshot = Snapshot::new(
+            vec![
+                Entry::window(
+                    "public".into(),
+                    "0".into(),
+                    "work".into(),
+                    "/henull2/public".into(),
+                    SortPriority::OtherSessionWindow,
+                    false,
+                    None,
+                    None,
+                ),
+                Entry::window(
+                    "public-1".into(),
+                    "0".into(),
+                    "other".into(),
+                    "/henullcom/public".into(),
+                    SortPriority::OtherSessionWindow,
+                    false,
+                    None,
+                    None,
+                ),
+            ],
+            "s".into(),
+            "s:0".into(),
+        );
+        let grouped = GroupedList::from_snapshot(&snapshot);
+
+        // Both are standalone (1 window each)
+        let displays: Vec<&str> = grouped
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                GroupedListItem::StandaloneSession(e) => Some(e.display.as_str()),
+                _ => None,
+            })
+            .collect();
+
+        assert_eq!(displays.len(), 2);
+        assert!(
+            displays[0].contains("henull2/public"),
+            "expected henull2/public in {:?}",
+            displays[0]
+        );
+        assert!(
+            displays[1].contains("henullcom/public"),
+            "expected henullcom/public in {:?}",
+            displays[1]
+        );
+    }
+
+    #[test]
+    fn two_sessions_same_path_appends_session_name() {
+        // Two sessions at identical path → display appends session name
+        let snapshot = Snapshot::new(
+            vec![
+                Entry::window(
+                    "work".into(),
+                    "0".into(),
+                    "editor".into(),
+                    "/project".into(),
+                    SortPriority::OtherSessionWindow,
+                    false,
+                    None,
+                    None,
+                ),
+                Entry::window(
+                    "side".into(),
+                    "0".into(),
+                    "shell".into(),
+                    "/project".into(),
+                    SortPriority::OtherSessionWindow,
+                    false,
+                    None,
+                    None,
+                ),
+            ],
+            "s".into(),
+            "s:0".into(),
+        );
+        let grouped = GroupedList::from_snapshot(&snapshot);
+
+        let displays: Vec<&str> = grouped
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                GroupedListItem::StandaloneSession(e) => Some(e.display.as_str()),
+                _ => None,
+            })
+            .collect();
+
+        assert_eq!(displays.len(), 2);
+        assert!(
+            displays[0].contains("project (work)"),
+            "expected 'project (work)' in {:?}",
+            displays[0]
+        );
+        assert!(
+            displays[1].contains("project (side)"),
+            "expected 'project (side)' in {:?}",
+            displays[1]
+        );
     }
 }

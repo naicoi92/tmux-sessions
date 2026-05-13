@@ -601,12 +601,12 @@ mod tests {
     #[test]
     fn selected_entry_returns_correct() {
         let state = AppState::new(make_snap(vec![e_window("first"), e_window("second")]));
-        assert_eq!(state.selected_entry().unwrap().display, "  ◆ s1 [0]: first");
+        assert_eq!(state.selected_entry().unwrap().display, "  ◆ p [0]: first");
         let mut state = state;
         state.selected_index = 1;
         assert_eq!(
             state.selected_entry().unwrap().display,
-            "  ◆ s1 [0]: second"
+            "  ◆ p [0]: second"
         );
     }
 

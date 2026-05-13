@@ -26,6 +26,10 @@ pub struct Entry {
     pub matched_indices: Vec<u32>,
     pub window_activity: Option<i64>,
     pub session_activity: Option<i64>,
+    /// Raw window name from tmux, used for display reconstruction.
+    pub window_name: Option<String>,
+    /// Raw window index from tmux, used for display reconstruction.
+    pub window_index: Option<String>,
 }
 
 impl Entry {
@@ -59,7 +63,19 @@ impl Entry {
             matched_indices: Vec::new(),
             window_activity,
             session_activity,
+            window_name: Some(window_name),
+            window_index: Some(window_index),
         }
+    }
+
+    /// Rebuild display string with a different session display name.
+    /// Keeps window index and name unchanged.
+    pub fn with_display_session_name(mut self, display_name: &str) -> Self {
+        if let (Some(_idx), Some(_wname)) = (&self.window_index, &self.window_name) {
+            let marker = if self.is_current { "\u{25b8} " } else { "  " };
+            self.display = format!("{marker}\u{25c6} {display_name} [{_idx}]: {_wname}");
+        }
+        self
     }
 
     pub fn zoxide(dir_name: String, full_path: String) -> Self {
@@ -76,6 +92,8 @@ impl Entry {
             matched_indices: Vec::new(),
             window_activity: None,
             session_activity: None,
+            window_name: None,
+            window_index: None,
         }
     }
 

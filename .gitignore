@@ -1,4 +1,7 @@
 target/
 dist/
 .sisyphus/
+.pi-lens/
+plans/
+.pi/
 
