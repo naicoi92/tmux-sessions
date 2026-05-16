@@ -21,8 +21,9 @@ fn detect_tmux_context() -> TmuxContext {
 }
 
 fn attach_main_session() -> ! {
+    let home = env::var("HOME").unwrap_or_else(|_| "/".to_string());
     let status = Command::new("tmux")
-        .args(["new-session", "-A", "-s", "main"])
+        .args(["new-session", "-A", "-s", "main", "-c", &home])
         .status();
     match status {
         Ok(s) if s.success() => process::exit(0),
@@ -31,7 +32,7 @@ fn attach_main_session() -> ! {
             process::exit(1);
         }
         Err(e) => {
-            eprintln!("error: cannot execute tmux new-session -A -s main: {e}");
+            eprintln!("error: cannot execute tmux new-session -A -s main -c {home}: {e}");
             process::exit(1);
         }
     }
@@ -101,7 +102,7 @@ fn print_usage() {
     println!("    --debug          Run in debug mode (no tmux calls)");
     println!();
     println!("BEHAVIOR:");
-    println!("    Outside tmux  → attach to 'main' session (create if needed)");
+    println!("    Outside tmux  → attach to 'main' session at $HOME (create if needed)");
     println!("    In tmux pane → open popup (display-popup)");
     println!("    In popup     → run TUI");
     println!();

@@ -206,6 +206,15 @@ mod tests {
             Ok(())
         }
 
+        fn set_window_option(
+            &self,
+            _target: &str,
+            _option: &str,
+            _value: &str,
+        ) -> Result<(), ActionError> {
+            Ok(())
+        }
+
         fn capture_pane(&self, _target: &str, _line_count: usize) -> Result<String, AdapterError> {
             std::thread::sleep(PREVIEW_TIMEOUT + Duration::from_millis(150));
             Ok("late-pane".to_string())

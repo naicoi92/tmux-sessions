@@ -6,6 +6,9 @@ pub enum Action {
         target: String,
         path: String,
         entry_type: EntryType,
+        /// For Zoxide: pre-disambiguated display name (without icon),
+        /// used as session ID source. Empty for Window entries.
+        session_name_hint: Option<String>,
     },
     Kill {
         target: String,
@@ -22,14 +25,16 @@ impl Action {
             target,
             path,
             entry_type: EntryType::Window,
+            session_name_hint: None,
         }
     }
 
-    pub fn goto_zoxide(target: String, path: String) -> Self {
+    pub fn goto_zoxide(target: String, path: String, session_name_hint: String) -> Self {
         Self::Goto {
             target,
             path,
             entry_type: EntryType::Zoxide,
+            session_name_hint: Some(session_name_hint),
         }
     }
 
@@ -63,7 +68,7 @@ mod tests {
 
     #[test]
     fn goto_zoxide_has_correct_entry_type() {
-        let action = Action::goto_zoxide("/home/proj".into(), "/home/proj".into());
+        let action = Action::goto_zoxide("/home/proj".into(), "/home/proj".into(), "proj".into());
         match action {
             Action::Goto { entry_type, .. } => assert_eq!(entry_type, EntryType::Zoxide),
             _ => panic!("expected Goto"),

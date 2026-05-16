@@ -39,6 +39,7 @@ impl FakeTmuxSource {
                 window_index: index.into(),
                 window_name: name.into(),
                 window_path: path.into(),
+                original_path: None,
                 window_activity: None,
             }],
             sessions: vec![RawSession {
@@ -137,6 +138,14 @@ impl TmuxSource for FakeTmuxSource {
                 detail: "fake failure".to_string(),
             });
         }
+        Ok(())
+    }
+    fn set_window_option(
+        &self,
+        _target: &str,
+        _option: &str,
+        _value: &str,
+    ) -> Result<(), ActionError> {
         Ok(())
     }
     fn capture_pane(&self, target: &str, _line_count: usize) -> Result<String, AdapterError> {

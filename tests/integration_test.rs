@@ -164,6 +164,15 @@ impl TmuxSource for RecordingTmuxSource {
         Ok(())
     }
 
+    fn set_window_option(
+        &self,
+        _target: &str,
+        _option: &str,
+        _value: &str,
+    ) -> Result<(), ActionError> {
+        Ok(())
+    }
+
     fn capture_pane(&self, _target: &str, _line_count: usize) -> Result<String, AdapterError> {
         Ok(String::new())
     }
@@ -191,6 +200,7 @@ fn full_board_sort_with_fake_adapters() {
             window_index: "0".into(),
             window_name: "remote".into(),
             window_path: "/remote".into(),
+            original_path: None,
             window_activity: None,
         },
         RawWindow {
@@ -198,6 +208,7 @@ fn full_board_sort_with_fake_adapters() {
             window_index: "0".into(),
             window_name: "main".into(),
             window_path: "/home".into(),
+            original_path: None,
             window_activity: None,
         },
         RawWindow {
@@ -205,6 +216,7 @@ fn full_board_sort_with_fake_adapters() {
             window_index: "1".into(),
             window_name: "edit".into(),
             window_path: "/home".into(),
+            original_path: None,
             window_activity: None,
         },
     ];
@@ -284,7 +296,7 @@ fn adapter_error_from_io() {
 fn action_variants_exhaustive_match() {
     let actions = vec![
         Action::goto_window("t".into(), "/p".into()),
-        Action::goto_zoxide("t".into(), "/p".into()),
+        Action::goto_zoxide("t".into(), "/p".into(), "p".into()),
         Action::kill_window("t".into()),
         Action::kill_zoxide("t".into()),
         Action::TogglePreview,
@@ -393,7 +405,7 @@ fn zoxide_enter_creates_single_session_then_switches() {
 
     assert_eq!(
         exit,
-        tmux_sessions::app::executor::ExitReason::SwitchTo("project".into())
+        tmux_sessions::app::executor::ExitReason::SwitchTo("project:0".into())
     );
     assert_eq!(
         tmux.calls(),

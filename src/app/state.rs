@@ -237,7 +237,13 @@ impl AppState {
                 Some(Action::goto_window(entry.target, entry.path))
             }
             crate::domain::entry::EntryType::Zoxide => {
-                Some(Action::goto_zoxide(entry.target, entry.path))
+                // Use display name (already disambiguated, without icon) as session name hint
+                let display_name = entry.display.strip_prefix("▤ ").unwrap_or(&entry.display);
+                Some(Action::goto_zoxide(
+                    entry.target,
+                    entry.path,
+                    display_name.to_string(),
+                ))
             }
         }
     }
@@ -608,10 +614,13 @@ mod tests {
     #[test]
     fn selected_entry_returns_correct() {
         let state = AppState::new(make_snap(vec![e_window("first"), e_window("second")]));
-        assert_eq!(state.selected_entry().unwrap().display, "  ◆ p [0]: first");
+        assert_eq!(state.selected_entry().unwrap().display, "  ◆ s1 [0]: first");
         let mut state = state;
         state.selected_index = 1;
-        assert_eq!(state.selected_entry().unwrap().display, "  ◆ p [0]: second");
+        assert_eq!(
+            state.selected_entry().unwrap().display,
+            "  ◆ s1 [0]: second"
+        );
     }
 
     #[test]

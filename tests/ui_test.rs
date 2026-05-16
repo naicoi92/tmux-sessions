@@ -195,6 +195,7 @@ fn goto_action_zoxide() {
             entry_type,
             target,
             path,
+            ..
         } => {
             assert_eq!(entry_type, EntryType::Zoxide);
             assert_eq!(target, "/project");

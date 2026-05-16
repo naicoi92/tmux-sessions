@@ -83,17 +83,34 @@ impl GroupedList {
             }
         }
 
-        // Disambiguate display names across unique sessions, not windows.
-        // Multiple windows in one session must not force parent/path display.
+        // Determine display names:
+        // - If a session's path basename is unique → display session name directly
+        //   (e.g. session "main" at /home/user → "main")
+        // - If path basenames collide → disambiguate with parent/basename
+        //   (e.g. "henull2/public" and "henullcom/public")
         let all_session_paths: Vec<&str> = path_by_session.values().map(String::as_str).collect();
-        let mut display_by_session: HashMap<String, String> = HashMap::new();
+        let mut basename_groups: HashMap<String, Vec<String>> = HashMap::new();
         for (session, path) in &path_by_session {
-            let display = crate::domain::path_name::disambiguate_name(path, &all_session_paths);
-            display_by_session.insert(session.clone(), display);
+            let bn = crate::domain::path_name::basename_from_path(path);
+            basename_groups.entry(bn).or_default().push(session.clone());
         }
 
-        // When two sessions share the same path, display names collide.
-        // Append tmux session name to distinguish: "project (work-session)".
+        let mut display_by_session: HashMap<String, String> = HashMap::new();
+        for (session, path) in &path_by_session {
+            let bn = crate::domain::path_name::basename_from_path(path);
+            let collision_count = basename_groups.get(&bn).map(|v| v.len()).unwrap_or(1);
+            if collision_count <= 1 {
+                // Unique path basename → session name directly
+                display_by_session.insert(session.clone(), session.clone());
+            } else {
+                // Collision → disambiguate via path
+                let display = crate::domain::path_name::disambiguate_name(path, &all_session_paths);
+                display_by_session.insert(session.clone(), display);
+            }
+        }
+
+        // When disambiguated displays still collide (same path, different sessions),
+        // append tmux session name to distinguish.
         let mut display_counts: HashMap<String, Vec<String>> = HashMap::new();
         for (session, display) in &display_by_session {
             display_counts
@@ -506,8 +523,8 @@ mod tests {
     }
 
     #[test]
-    fn two_sessions_same_basename_disambiguate_with_parent() {
-        // Two different sessions with same basename "public" → show parent/basename
+    fn two_sessions_same_path_basename_disambiguate_with_parent() {
+        // Two sessions at paths with same basename "public" → disambiguate via path
         let snapshot = Snapshot::new(
             vec![
                 Entry::window(
@@ -536,7 +553,6 @@ mod tests {
         );
         let grouped = GroupedList::from_snapshot(&snapshot);
 
-        // Both are standalone (1 window each)
         let displays: Vec<&str> = grouped
             .items
             .iter()
@@ -560,56 +576,38 @@ mod tests {
     }
 
     #[test]
-    fn two_sessions_same_path_appends_session_name() {
-        // Two sessions at identical path → display appends session name
+    fn unique_session_shows_session_name_not_path() {
+        // Session "main" at /home/user → unique path basename → display "main"
         let snapshot = Snapshot::new(
-            vec![
-                Entry::window(
-                    "work".into(),
-                    "0".into(),
-                    "editor".into(),
-                    "/project".into(),
-                    SortPriority::OtherSessionWindow,
-                    false,
-                    None,
-                    None,
-                ),
-                Entry::window(
-                    "side".into(),
-                    "0".into(),
-                    "shell".into(),
-                    "/project".into(),
-                    SortPriority::OtherSessionWindow,
-                    false,
-                    None,
-                    None,
-                ),
-            ],
-            "s".into(),
-            "s:0".into(),
+            vec![Entry::window(
+                "main".into(),
+                "0".into(),
+                "editor".into(),
+                "/home/user".into(),
+                SortPriority::CurrentWindow,
+                true,
+                None,
+                None,
+            )],
+            "main".into(),
+            "main:0".into(),
         );
         let grouped = GroupedList::from_snapshot(&snapshot);
-
-        let displays: Vec<&str> = grouped
-            .items
-            .iter()
-            .filter_map(|item| match item {
-                GroupedListItem::StandaloneSession(e) => Some(e.display.as_str()),
-                _ => None,
-            })
-            .collect();
-
-        assert_eq!(displays.len(), 2);
-        assert!(
-            displays[0].contains("project (work)"),
-            "expected 'project (work)' in {:?}",
-            displays[0]
-        );
-        assert!(
-            displays[1].contains("project (side)"),
-            "expected 'project (side)' in {:?}",
-            displays[1]
-        );
+        match &grouped.items[0] {
+            GroupedListItem::StandaloneSession(e) => {
+                assert!(
+                    e.display.contains("main"),
+                    "expected 'main' in {:?}",
+                    e.display
+                );
+                assert!(
+                    !e.display.contains("user"),
+                    "should NOT contain path basename 'user': {:?}",
+                    e.display
+                );
+            }
+            other => panic!("expected StandaloneSession, got {other:?}"),
+        }
     }
 
     #[test]

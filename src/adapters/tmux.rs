@@ -23,6 +23,8 @@ pub trait TmuxSource {
     fn switch_client(&self, target: &str) -> Result<(), ActionError>;
     fn kill_window(&self, target: &str) -> Result<(), ActionError>;
     fn kill_session(&self, name: &str) -> Result<(), ActionError>;
+    fn set_window_option(&self, target: &str, option: &str, value: &str)
+        -> Result<(), ActionError>;
     fn capture_pane(&self, target: &str, line_count: usize) -> Result<String, AdapterError>;
     fn capture_pane_with_size(
         &self,
@@ -97,6 +99,7 @@ mod tests {
                 window_index: "0".into(),
                 window_name: "main".into(),
                 window_path: "/home".into(),
+                original_path: None,
                 window_activity: None,
             },
             RawWindow {
@@ -104,6 +107,7 @@ mod tests {
                 window_index: "1".into(),
                 window_name: "other".into(),
                 window_path: "/home".into(),
+                original_path: None,
                 window_activity: None,
             },
         ];

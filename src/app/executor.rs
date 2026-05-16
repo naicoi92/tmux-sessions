@@ -1,4 +1,4 @@
-use crate::adapters::tmux::{RawWindow, TmuxSource};
+use crate::adapters::tmux::TmuxSource;
 use crate::domain::action::Action;
 use crate::domain::entry::EntryType;
 use crate::domain::error::ActionError;
@@ -20,7 +20,14 @@ impl ActionExecutor {
                 target,
                 path,
                 entry_type,
-            } => execute_goto(target, path, *entry_type, tmux),
+                session_name_hint,
+            } => execute_goto(
+                target,
+                path,
+                *entry_type,
+                session_name_hint.as_deref(),
+                tmux,
+            ),
             Action::Kill { target, entry_type } => execute_kill(target, *entry_type, tmux),
             Action::TogglePreview | Action::Reload | Action::Quit => Ok(ExitReason::Quit),
         }
@@ -31,11 +38,12 @@ fn execute_goto(
     target: &str,
     path: &str,
     entry_type: EntryType,
+    session_name_hint: Option<&str>,
     tmux: &dyn TmuxSource,
 ) -> Result<ExitReason, ActionError> {
     match entry_type {
         EntryType::Window => execute_window_goto(target, tmux),
-        EntryType::Zoxide => execute_zoxide_goto(path, tmux),
+        EntryType::Zoxide => execute_zoxide_goto(path, session_name_hint, tmux),
     }
 }
 
@@ -47,28 +55,37 @@ fn execute_window_goto(target: &str, tmux: &dyn TmuxSource) -> Result<ExitReason
     Ok(ExitReason::SwitchTo(target.to_string()))
 }
 
-fn execute_zoxide_goto(path: &str, tmux: &dyn TmuxSource) -> Result<ExitReason, ActionError> {
-    let base = sanitize_session_name(&extract_session_name(path));
+fn execute_zoxide_goto(
+    path: &str,
+    session_name_hint: Option<&str>,
+    tmux: &dyn TmuxSource,
+) -> Result<ExitReason, ActionError> {
+    // Use disambiguated display name if available, fallback to path basename
+    let raw_name = session_name_hint
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| extract_session_name(path));
+    let session_id = sanitize_session_name(&raw_name);
 
     match tmux.list_sessions() {
         Ok(sessions) => {
-            let existing_names: Vec<String> =
-                sessions.iter().map(|s| s.session_name.clone()).collect();
+            let existing: Vec<String> = sessions.iter().map(|s| s.session_name.clone()).collect();
 
-            if existing_names.iter().any(|s| s == &base) {
+            if existing.iter().any(|s| s == &session_id) {
                 // Session exists → create new window in it
-                let target = tmux.new_window(&base, path)?;
+                let target = tmux.new_window(&session_id, path)?;
+                let _ = tmux.set_window_option(&target, "@pi_original_path", path);
                 tmux.switch_client(&target)?;
                 Ok(ExitReason::SwitchTo(target))
             } else {
                 // No session yet → create new one
-                let name = resolve_session_name(path, &existing_names);
-                tmux.new_session(&name, path)?;
-                tmux.switch_client(&name)?;
-                Ok(ExitReason::SwitchTo(name))
+                tmux.new_session(&session_id, path)?;
+                let target = format!("{session_id}:0");
+                let _ = tmux.set_window_option(&target, "@pi_original_path", path);
+                tmux.switch_client(&session_id)?;
+                Ok(ExitReason::SwitchTo(target))
             }
         }
-        Err(_) => execute_zoxide_goto_fallback(path, tmux),
+        Err(_) => execute_zoxide_goto_fallback(path, &session_id, tmux),
     }
 }
 
@@ -77,18 +94,20 @@ fn execute_zoxide_goto(path: &str, tmux: &dyn TmuxSource) -> Result<ExitReason, 
 /// Otherwise: create new session.
 fn execute_zoxide_goto_fallback(
     path: &str,
+    session_id: &str,
     tmux: &dyn TmuxSource,
 ) -> Result<ExitReason, ActionError> {
-    let base = sanitize_session_name(&extract_session_name(path));
-
-    if tmux.has_session(&base).unwrap_or(false) {
-        let target = tmux.new_window(&base, path)?;
+    if tmux.has_session(session_id).unwrap_or(false) {
+        let target = tmux.new_window(session_id, path)?;
+        let _ = tmux.set_window_option(&target, "@pi_original_path", path);
         tmux.switch_client(&target)?;
         Ok(ExitReason::SwitchTo(target))
     } else {
-        tmux.new_session(&base, path)?;
-        tmux.switch_client(&base)?;
-        Ok(ExitReason::SwitchTo(base))
+        tmux.new_session(session_id, path)?;
+        let target = format!("{session_id}:0");
+        let _ = tmux.set_window_option(&target, "@pi_original_path", path);
+        tmux.switch_client(session_id)?;
+        Ok(ExitReason::SwitchTo(target))
     }
 }
 
@@ -156,55 +175,6 @@ pub fn sanitize_session_name(basename: &str) -> String {
         "_".to_string()
     } else {
         result
-    }
-}
-
-/// Decision for zoxide goto: create window in existing session or create new session.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ZoxideAction {
-    /// Session with this basename already exists — create a new window in it.
-    CreateWindowInSession { session: String, path: String },
-    /// No session with this basename — create a new session.
-    CreateNewSession { name: String },
-}
-
-/// Resolve what action to take when user selects a zoxide directory.
-///
-/// 1. If a tmux session with this basename already exists → create window in it.
-/// 2. Otherwise → create a new session with a collision-safe name.
-pub fn resolve_zoxide_action(
-    path: &str,
-    _windows: &[RawWindow],
-    existing_session_names: &[String],
-) -> ZoxideAction {
-    let base = sanitize_session_name(&extract_session_name(path));
-
-    if existing_session_names.iter().any(|s| s == &base) {
-        return ZoxideAction::CreateWindowInSession {
-            session: base,
-            path: path.to_string(),
-        };
-    }
-
-    let name = resolve_session_name(path, existing_session_names);
-    ZoxideAction::CreateNewSession { name }
-}
-
-/// Resolve collision-safe tmux session name from a path.
-/// Uses basename + numeric suffix: `public`, `public-1`, `public-2`.
-pub fn resolve_session_name(path: &str, existing: &[String]) -> String {
-    let basename = sanitize_session_name(&basename_from_path(path));
-    if !existing.iter().any(|s| s == &basename) {
-        return basename;
-    }
-
-    let mut suffix: u32 = 1;
-    loop {
-        let candidate = format!("{basename}-{suffix}");
-        if !existing.iter().any(|s| s == &candidate) {
-            return candidate;
-        }
-        suffix += 1;
     }
 }
 
@@ -295,36 +265,6 @@ mod tests {
     }
 
     #[test]
-    fn resolve_no_collision() {
-        let existing: Vec<String> = vec!["other".into()];
-        assert_eq!(resolve_session_name("project", &existing), "project");
-    }
-
-    #[test]
-    fn resolve_single_collision() {
-        let existing: Vec<String> = vec!["project".into()];
-        assert_eq!(resolve_session_name("project", &existing), "project-1");
-    }
-
-    #[test]
-    fn resolve_multiple_collisions() {
-        let existing: Vec<String> = vec!["project".into(), "project-1".into()];
-        assert_eq!(resolve_session_name("project", &existing), "project-2");
-    }
-
-    #[test]
-    fn resolve_gap_in_suffixes() {
-        let existing: Vec<String> = vec!["project".into(), "project-2".into()];
-        assert_eq!(resolve_session_name("project", &existing), "project-1");
-    }
-
-    #[test]
-    fn resolve_empty_existing() {
-        let existing: Vec<String> = vec![];
-        assert_eq!(resolve_session_name("project", &existing), "project");
-    }
-
-    #[test]
     fn zoxide_goto_existing_session_creates_window_in_that_session() {
         let mut tmux = FakeTmuxSource::new();
         // Existing session "myproject"
@@ -336,8 +276,11 @@ mod tests {
         tmux.existing_sessions = vec!["myproject".into()];
         tmux.current_session_name = "other-session".into();
 
-        let action =
-            Action::goto_zoxide("/home/user/myproject".into(), "/home/user/myproject".into());
+        let action = Action::goto_zoxide(
+            "/home/user/myproject".into(),
+            "/home/user/myproject".into(),
+            "myproject".into(),
+        );
         let result = ActionExecutor::execute(&action, &tmux).unwrap();
 
         // Session basename match → new window in it (fake returns session:99)
@@ -345,17 +288,19 @@ mod tests {
     }
 
     #[test]
-    fn zoxide_goto_no_session_creates_new_session() {
+    fn zoxide_goto_no_session_creates_new_session_with_window_0() {
         let mut tmux = FakeTmuxSource::new();
         tmux.current_session_name = "current".into();
 
         let action = Action::goto_zoxide(
             "/home/user/newproject".into(),
             "/home/user/newproject".into(),
+            "newproject".into(),
         );
         let result = ActionExecutor::execute(&action, &tmux).unwrap();
 
-        assert_eq!(result, ExitReason::SwitchTo("newproject".into()));
+        // New session → target is session:0
+        assert_eq!(result, ExitReason::SwitchTo("newproject:0".into()));
     }
 
     #[test]
@@ -370,8 +315,11 @@ mod tests {
         tmux.existing_sessions = vec!["_dotfiles".into()];
         tmux.current_session_name = "current".into();
 
-        let action =
-            Action::goto_zoxide("/home/user/.dotfiles".into(), "/home/user/.dotfiles".into());
+        let action = Action::goto_zoxide(
+            "/home/user/.dotfiles".into(),
+            "/home/user/.dotfiles".into(),
+            "_dotfiles".into(),
+        );
         let result = ActionExecutor::execute(&action, &tmux).unwrap();
 
         // Session exists → create window in it

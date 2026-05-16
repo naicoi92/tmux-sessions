@@ -7,22 +7,29 @@ pub fn parse_windows(output: &str) -> Result<Vec<RawWindow>, AdapterError> {
         .filter(|line| !line.trim().is_empty())
         .map(|line| {
             let parts: Vec<&str> = line.split('\t').collect();
-            if parts.len() != 5 {
+            if parts.len() < 5 || parts.len() > 6 {
                 return Err(AdapterError::TmuxParse {
                     input: line.to_string(),
-                    detail: format!("expected 5 tab-separated fields, got {}", parts.len()),
+                    detail: format!("expected 5 or 6 tab-separated fields, got {}", parts.len()),
                 });
             }
-            let window_activity = if parts[4].is_empty() {
+            let original_path = if parts.len() == 6 && !parts[4].is_empty() {
+                Some(parts[4].to_string())
+            } else {
+                None
+            };
+            let activity_idx = if parts.len() == 6 { 5 } else { 4 };
+            let window_activity = if parts[activity_idx].is_empty() {
                 None
             } else {
-                parts[4].parse::<i64>().ok()
+                parts[activity_idx].parse::<i64>().ok()
             };
             Ok(RawWindow {
                 session_name: parts[0].to_string(),
                 window_index: parts[1].to_string(),
                 window_name: parts[2].to_string(),
                 window_path: parts[3].to_string(),
+                original_path,
                 window_activity,
             })
         })
@@ -172,7 +179,7 @@ mod tests {
 
     #[test]
     fn parse_windows_too_many_fields_errors() {
-        let input = "s1\t0\tmain\t/home/user\t1714000000\textra";
+        let input = "s1\t0\tmain\t/home/user\t1714000000\textra\tseventh";
         let result = parse_windows(input);
         assert!(result.is_err());
     }
@@ -188,5 +195,31 @@ mod tests {
         let input = "s1\t0\tmain\t/home/user\t100\n   \ns2\t1\tother\t/tmp\t200";
         let result = parse_windows(input).unwrap();
         assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn parse_windows_with_original_path_6_fields() {
+        let input = "s1\t0\tmain\t/home/user/subdir\t/home/user\t1714000000";
+        let result = parse_windows(input).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].window_path, "/home/user/subdir");
+        assert_eq!(result[0].original_path, Some("/home/user".to_string()));
+        assert_eq!(result[0].window_activity, Some(1714000000));
+    }
+
+    #[test]
+    fn parse_windows_empty_original_path_falls_back_to_none() {
+        let input = "s1\t0\tmain\t/home/user\t\t1714000000";
+        let result = parse_windows(input).unwrap();
+        assert_eq!(result[0].original_path, None);
+        assert_eq!(result[0].window_activity, Some(1714000000));
+    }
+
+    #[test]
+    fn parse_windows_5_fields_still_works() {
+        let input = "s1\t0\tmain\t/home/user\t1714000000";
+        let result = parse_windows(input).unwrap();
+        assert_eq!(result[0].original_path, None);
+        assert_eq!(result[0].window_activity, Some(1714000000));
     }
 }

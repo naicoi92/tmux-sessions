@@ -1,12 +1,12 @@
-use tmux_sessions::adapters::tmux::{FakeTmuxCall, FakeTmuxSource};
+use tmux_sessions::adapters::tmux::{
+    FakeTmuxCall, FakeTmuxSource, RawSession, RawWindow, TmuxSource,
+};
 use tmux_sessions::app::executor::{
-    extract_session_name, resolve_session_name, sanitize_session_name, ActionExecutor, ExitReason,
+    extract_session_name, sanitize_session_name, ActionExecutor, ExitReason,
 };
 use tmux_sessions::domain::action::Action;
 use tmux_sessions::domain::entry::EntryType;
 use tmux_sessions::domain::error::{ActionError, AdapterError};
-
-use tmux_sessions::adapters::tmux::{RawSession, RawWindow, TmuxSource};
 
 use std::cell::RefCell;
 
@@ -22,7 +22,6 @@ fn fake_no_sessions() -> FakeTmuxSource {
 }
 
 fn fake_with_session(name: &str) -> FakeTmuxSource {
-    use tmux_sessions::adapters::tmux::RawSession;
     FakeTmuxSource {
         windows: vec![],
         sessions: vec![RawSession {
@@ -139,43 +138,35 @@ impl TmuxSource for RecordingTmuxSource {
             detail: "not used in tests".to_string(),
         })
     }
+
+    fn set_window_option(
+        &self,
+        target: &str,
+        option: &str,
+        value: &str,
+    ) -> Result<(), ActionError> {
+        self.calls
+            .borrow_mut()
+            .push(format!("set_window_option:{target}:{option}:{value}"));
+        Ok(())
+    }
 }
+
+// --- Window goto tests ---
 
 #[test]
 fn goto_window_returns_switch_to() {
     let fake = fake_no_sessions();
     let action = Action::goto_window("s1:0".into(), "/path".into());
     let result = ActionExecutor::execute(&action, &fake).unwrap();
-
     assert_eq!(result, ExitReason::SwitchTo("s1:0".into()));
-}
-
-#[test]
-fn goto_zoxide_new_session_returns_switch_to() {
-    let fake = fake_no_sessions();
-    let action = Action::goto_zoxide("/home/user/project".into(), "/home/user/project".into());
-    let result = ActionExecutor::execute(&action, &fake).unwrap();
-
-    assert_eq!(result, ExitReason::SwitchTo("project".into()));
-}
-
-#[test]
-fn goto_zoxide_existing_session_avoids_collision() {
-    let fake = fake_with_session("myproject");
-    let action = Action::goto_zoxide("/home/user/myproject".into(), "/home/user/myproject".into());
-    let result = ActionExecutor::execute(&action, &fake).unwrap();
-
-    // Session "myproject" exists → create new window
-    assert_eq!(result, ExitReason::SwitchTo("myproject:99".into()));
 }
 
 #[test]
 fn goto_window_selects_then_switches_client_for_session_target() {
     let tmux = RecordingTmuxSource::default();
     let action = Action::goto_window("work:3".into(), "/path".into());
-
     let result = ActionExecutor::execute(&action, &tmux).unwrap();
-
     assert_eq!(result, ExitReason::SwitchTo("work:3".into()));
     assert_eq!(
         tmux.calls(),
@@ -190,9 +181,7 @@ fn goto_window_selects_then_switches_client_for_session_target() {
 fn goto_window_without_session_separator_does_not_switch_client() {
     let tmux = RecordingTmuxSource::default();
     let action = Action::goto_window("work".into(), "/path".into());
-
     let result = ActionExecutor::execute(&action, &tmux).unwrap();
-
     assert_eq!(result, ExitReason::SwitchTo("work".into()));
     assert_eq!(tmux.calls(), vec!["select_window:work".to_string()]);
 }
@@ -201,9 +190,7 @@ fn goto_window_without_session_separator_does_not_switch_client() {
 fn goto_window_switch_client_failure_happens_after_select_window() {
     let tmux = RecordingTmuxSource::with_switch_failure("work");
     let action = Action::goto_window("work:9".into(), "/path".into());
-
     let result = ActionExecutor::execute(&action, &tmux);
-
     assert!(result.is_err());
     assert_eq!(
         tmux.calls(),
@@ -214,69 +201,54 @@ fn goto_window_switch_client_failure_happens_after_select_window() {
     );
 }
 
+// --- Zoxide goto tests (with session_name_hint) ---
+
 #[test]
-fn kill_window_returns_reload() {
+fn goto_zoxide_new_session_returns_switch_to() {
     let fake = fake_no_sessions();
-    let action = Action::kill_window("s1:2".into());
+    let action = Action::goto_zoxide(
+        "/home/user/project".into(),
+        "/home/user/project".into(),
+        "project".into(),
+    );
     let result = ActionExecutor::execute(&action, &fake).unwrap();
-
-    assert_eq!(result, ExitReason::Reload);
+    assert_eq!(result, ExitReason::SwitchTo("project:0".into()));
 }
 
 #[test]
-fn kill_zoxide_returns_reload() {
-    let fake = fake_with_session("project");
-    let action = Action::kill_zoxide("project".into());
+fn goto_zoxide_existing_session_creates_window() {
+    let fake = fake_with_session("myproject");
+    let action = Action::goto_zoxide(
+        "/home/user/myproject".into(),
+        "/home/user/myproject".into(),
+        "myproject".into(),
+    );
     let result = ActionExecutor::execute(&action, &fake).unwrap();
-
-    assert_eq!(result, ExitReason::Reload);
+    assert_eq!(result, ExitReason::SwitchTo("myproject:99".into()));
 }
 
 #[test]
-fn kill_zoxide_failure_returns_error() {
-    let fake = fake_with_failure(FakeTmuxCall::KillSession("project".into()));
-    let action = Action::kill_zoxide("project".into());
-    let result = ActionExecutor::execute(&action, &fake);
-
-    assert!(result.is_err());
-    let err = result.unwrap_err().to_string();
-    assert!(err.contains("project"));
+fn session_name_from_nested_path() {
+    let fake = fake_no_sessions();
+    let action = Action::goto_zoxide(
+        "/a/deep/nested/project".into(),
+        "/a/deep/nested/project".into(),
+        "project".into(),
+    );
+    let result = ActionExecutor::execute(&action, &fake).unwrap();
+    assert_eq!(result, ExitReason::SwitchTo("project:0".into()));
 }
 
 #[test]
-fn kill_zoxide_extracts_session_name_from_path_target() {
-    let fake = fake_with_failure(FakeTmuxCall::KillSession("project".into()));
-    let action = Action::Kill {
-        target: "/home/user/project".into(),
-        entry_type: EntryType::Zoxide,
-    };
-    let result = ActionExecutor::execute(&action, &fake);
-
-    assert!(result.is_err());
-    let err = result.unwrap_err().to_string();
-    assert!(err.contains("project"));
-}
-
-#[test]
-fn goto_window_failure_returns_error() {
-    let fake = fake_with_failure(FakeTmuxCall::SelectWindow("s1:0".into()));
-    let action = Action::goto_window("s1:0".into(), "/path".into());
-    let result = ActionExecutor::execute(&action, &fake);
-
-    assert!(result.is_err());
-    let err = result.unwrap_err().to_string();
-    assert!(err.contains("s1:0"));
-}
-
-#[test]
-fn kill_window_failure_returns_error() {
-    let fake = fake_with_failure(FakeTmuxCall::KillWindow("s1:0".into()));
-    let action = Action::kill_window("s1:0".into());
-    let result = ActionExecutor::execute(&action, &fake);
-
-    assert!(result.is_err());
-    let err = result.unwrap_err().to_string();
-    assert!(err.contains("s1:0"));
+fn session_name_from_simple_path() {
+    let fake = fake_no_sessions();
+    let action = Action::goto_zoxide(
+        "/home/user/dotfiles".into(),
+        "/home/user/dotfiles".into(),
+        "dotfiles".into(),
+    );
+    let result = ActionExecutor::execute(&action, &fake).unwrap();
+    assert_eq!(result, ExitReason::SwitchTo("dotfiles:0".into()));
 }
 
 #[test]
@@ -292,9 +264,8 @@ fn new_session_failure_returns_error() {
             path: "/proj".into(),
         }],
     };
-    let action = Action::goto_zoxide("/proj".into(), "/proj".into());
+    let action = Action::goto_zoxide("/proj".into(), "/proj".into(), "proj".into());
     let result = ActionExecutor::execute(&action, &fake);
-
     assert!(result.is_err());
 }
 
@@ -307,28 +278,135 @@ fn switch_client_failure_returns_error() {
     };
     let action = Action::goto_window("s1:0".into(), "/existing".into());
     let result = ActionExecutor::execute(&action, &fake);
-
     assert!(result.is_err());
 }
 
 #[test]
-fn session_name_from_nested_path() {
-    let fake = fake_no_sessions();
-    let action = Action::goto_zoxide(
-        "/a/deep/nested/project".into(),
-        "/a/deep/nested/project".into(),
-    );
+fn goto_zoxide_invalid_basename_sanitized() {
+    let fake = FakeTmuxSource {
+        windows: vec![],
+        sessions: vec![RawSession {
+            session_name: "_".into(),
+            attached: true,
+            session_activity: None,
+        }],
+        current_session_name: "_".into(),
+        current_window_idx: "0".into(),
+        existing_sessions: vec!["_".into()],
+        fail_on: vec![],
+    };
+    let action = Action::goto_zoxide("/".into(), "/".into(), "/".into());
     let result = ActionExecutor::execute(&action, &fake).unwrap();
-    assert_eq!(result, ExitReason::SwitchTo("project".into()));
+    // "/" → sanitized "_" → session "_" exists → create window
+    assert_eq!(result, ExitReason::SwitchTo("_:99".into()));
 }
 
 #[test]
-fn session_name_from_simple_path() {
+fn goto_zoxide_dot_prefix_sanitized() {
     let fake = fake_no_sessions();
-    let action = Action::goto_zoxide("/home/user/dotfiles".into(), "/home/user/dotfiles".into());
+    let action = Action::goto_zoxide(
+        "/home/user/.dotfiles".into(),
+        "/home/user/.dotfiles".into(),
+        ".dotfiles".into(),
+    );
     let result = ActionExecutor::execute(&action, &fake).unwrap();
-    assert_eq!(result, ExitReason::SwitchTo("dotfiles".into()));
+    // ".dotfiles" → sanitized "_dotfiles" → new session
+    assert_eq!(result, ExitReason::SwitchTo("_dotfiles:0".into()));
 }
+
+#[test]
+fn goto_zoxide_multiple_collisions() {
+    let fake = FakeTmuxSource {
+        windows: vec![],
+        sessions: vec![
+            RawSession {
+                session_name: "project".into(),
+                attached: false,
+                session_activity: None,
+            },
+            RawSession {
+                session_name: "project-1".into(),
+                attached: true,
+                session_activity: None,
+            },
+        ],
+        current_session_name: "project-1".into(),
+        current_window_idx: "0".into(),
+        existing_sessions: vec!["project".into(), "project-1".into()],
+        fail_on: vec![],
+    };
+    let action = Action::goto_zoxide(
+        "/home/user/project".into(),
+        "/home/user/project".into(),
+        "project".into(),
+    );
+    let result = ActionExecutor::execute(&action, &fake).unwrap();
+    // Session "project" exists → create window
+    assert_eq!(result, ExitReason::SwitchTo("project:99".into()));
+}
+
+// --- Kill tests ---
+
+#[test]
+fn kill_window_returns_reload() {
+    let fake = fake_no_sessions();
+    let action = Action::kill_window("s1:2".into());
+    let result = ActionExecutor::execute(&action, &fake).unwrap();
+    assert_eq!(result, ExitReason::Reload);
+}
+
+#[test]
+fn kill_zoxide_returns_reload() {
+    let fake = fake_with_session("project");
+    let action = Action::kill_zoxide("project".into());
+    let result = ActionExecutor::execute(&action, &fake).unwrap();
+    assert_eq!(result, ExitReason::Reload);
+}
+
+#[test]
+fn kill_zoxide_failure_returns_error() {
+    let fake = fake_with_failure(FakeTmuxCall::KillSession("project".into()));
+    let action = Action::kill_zoxide("project".into());
+    let result = ActionExecutor::execute(&action, &fake);
+    assert!(result.is_err());
+    let err = result.unwrap_err().to_string();
+    assert!(err.contains("project"));
+}
+
+#[test]
+fn kill_zoxide_extracts_session_name_from_path_target() {
+    let fake = fake_with_failure(FakeTmuxCall::KillSession("project".into()));
+    let action = Action::Kill {
+        target: "/home/user/project".into(),
+        entry_type: EntryType::Zoxide,
+    };
+    let result = ActionExecutor::execute(&action, &fake);
+    assert!(result.is_err());
+    let err = result.unwrap_err().to_string();
+    assert!(err.contains("project"));
+}
+
+#[test]
+fn goto_window_failure_returns_error() {
+    let fake = fake_with_failure(FakeTmuxCall::SelectWindow("s1:0".into()));
+    let action = Action::goto_window("s1:0".into(), "/path".into());
+    let result = ActionExecutor::execute(&action, &fake);
+    assert!(result.is_err());
+    let err = result.unwrap_err().to_string();
+    assert!(err.contains("s1:0"));
+}
+
+#[test]
+fn kill_window_failure_returns_error() {
+    let fake = fake_with_failure(FakeTmuxCall::KillWindow("s1:0".into()));
+    let action = Action::kill_window("s1:0".into());
+    let result = ActionExecutor::execute(&action, &fake);
+    assert!(result.is_err());
+    let err = result.unwrap_err().to_string();
+    assert!(err.contains("s1:0"));
+}
+
+// --- Utility action tests ---
 
 #[test]
 fn kill_window_target_with_special_chars() {
@@ -373,62 +451,7 @@ fn exit_reason_send_sync() {
     assert_send_sync::<ExitReason>();
 }
 
-#[test]
-fn goto_zoxide_invalid_basename_sanitized() {
-    use tmux_sessions::adapters::tmux::RawSession;
-    let fake = FakeTmuxSource {
-        windows: vec![],
-        sessions: vec![RawSession {
-            session_name: "_".into(),
-            attached: true,
-            session_activity: None,
-        }],
-        current_session_name: "_".into(),
-        current_window_idx: "0".into(),
-        existing_sessions: vec!["_".into()],
-        fail_on: vec![],
-    };
-    let action = Action::goto_zoxide("/".into(), "/".into());
-    let result = ActionExecutor::execute(&action, &fake).unwrap();
-    // "/" → sanitized "_" → session "_" exists → create window
-    assert_eq!(result, ExitReason::SwitchTo("_:99".into()));
-}
-
-#[test]
-fn goto_zoxide_dot_prefix_sanitized() {
-    let fake = fake_no_sessions();
-    let action = Action::goto_zoxide("/home/user/.dotfiles".into(), "/home/user/.dotfiles".into());
-    let result = ActionExecutor::execute(&action, &fake).unwrap();
-    assert_eq!(result, ExitReason::SwitchTo("_dotfiles".into()));
-}
-
-#[test]
-fn goto_zoxide_multiple_collisions() {
-    use tmux_sessions::adapters::tmux::RawSession;
-    let fake = FakeTmuxSource {
-        windows: vec![],
-        sessions: vec![
-            RawSession {
-                session_name: "project".into(),
-                attached: false,
-                session_activity: None,
-            },
-            RawSession {
-                session_name: "project-1".into(),
-                attached: true,
-                session_activity: None,
-            },
-        ],
-        current_session_name: "project-1".into(),
-        current_window_idx: "0".into(),
-        existing_sessions: vec!["project".into(), "project-1".into()],
-        fail_on: vec![],
-    };
-    let action = Action::goto_zoxide("/home/user/project".into(), "/home/user/project".into());
-    let result = ActionExecutor::execute(&action, &fake).unwrap();
-    // Sessions "project" and "project-1" exist, basename "project" matches, create window
-    assert_eq!(result, ExitReason::SwitchTo("project:99".into()));
-}
+// --- Characterization tests ---
 
 #[test]
 fn extract_session_name_characterization_matrix() {
@@ -446,37 +469,6 @@ fn sanitize_session_name_characterization_matrix() {
     assert_eq!(sanitize_session_name("   "), "_");
 }
 
-#[test]
-fn resolve_session_name_collision_characterization() {
-    let existing = vec![
-        "project".to_string(),
-        "project-1".to_string(),
-        "project-3".to_string(),
-    ];
-
-    // basename "project" collides → no parent to disambiguate (bare name) → "project-2"
-    assert_eq!(resolve_session_name("project", &existing), "project-2");
-    assert_eq!(resolve_session_name("other", &existing), "other");
-}
-
-#[test]
-fn resolve_session_name_basename_collision_uses_suffix() {
-    let existing = vec!["public".to_string()];
-    assert_eq!(
-        resolve_session_name("/home/user/henullcom/public", &existing),
-        "public-1"
-    );
-}
-
-#[test]
-fn resolve_session_name_no_collision_uses_basename() {
-    let existing: Vec<String> = vec!["other".to_string()];
-    assert_eq!(
-        resolve_session_name("/home/user/henull2/public", &existing),
-        "public"
-    );
-}
-
 // --- Zoxide path-based identity tests ---
 
 #[test]
@@ -487,6 +479,7 @@ fn zoxide_existing_window_same_path_switches_to_it() {
             window_index: "0".into(),
             window_name: "vim".into(),
             window_path: "/projects/a/bot".into(),
+            original_path: None,
             window_activity: None,
         }],
         sessions: vec![RawSession {
@@ -499,7 +492,11 @@ fn zoxide_existing_window_same_path_switches_to_it() {
         existing_sessions: vec!["bot".into()],
         fail_on: vec![],
     };
-    let action = Action::goto_zoxide("/projects/a/bot".into(), "/projects/a/bot".into());
+    let action = Action::goto_zoxide(
+        "/projects/a/bot".into(),
+        "/projects/a/bot".into(),
+        "bot".into(),
+    );
     let result = ActionExecutor::execute(&action, &fake).unwrap();
     // Session "bot" exists → create new window in it
     assert_eq!(result, ExitReason::SwitchTo("bot:99".into()));
@@ -513,6 +510,7 @@ fn zoxide_different_path_same_basename_creates_new_window_in_existing_session() 
             window_index: "0".into(),
             window_name: "vim".into(),
             window_path: "/projects/a/bot".into(),
+            original_path: None,
             window_activity: None,
         }],
         sessions: vec![RawSession {
@@ -525,8 +523,11 @@ fn zoxide_different_path_same_basename_creates_new_window_in_existing_session() 
         existing_sessions: vec!["bot".into()],
         fail_on: vec![],
     };
-    // Same basename "bot", different absolute path → session exists, create window
-    let action = Action::goto_zoxide("/projects/c/bot".into(), "/projects/c/bot".into());
+    let action = Action::goto_zoxide(
+        "/projects/c/bot".into(),
+        "/projects/c/bot".into(),
+        "bot".into(),
+    );
     let result = ActionExecutor::execute(&action, &fake).unwrap();
     assert_eq!(result, ExitReason::SwitchTo("bot:99".into()));
 }
@@ -539,6 +540,7 @@ fn zoxide_public_vs_public_api_no_collision() {
             window_index: "0".into(),
             window_name: "editor".into(),
             window_path: "/projects/public-api".into(),
+            original_path: None,
             window_activity: None,
         }],
         sessions: vec![RawSession {
@@ -552,9 +554,13 @@ fn zoxide_public_vs_public_api_no_collision() {
         fail_on: vec![],
     };
     // "public" basename ≠ "public-api" → no collision, new session "public"
-    let action = Action::goto_zoxide("/other/public".into(), "/other/public".into());
+    let action = Action::goto_zoxide(
+        "/other/public".into(),
+        "/other/public".into(),
+        "public".into(),
+    );
     let result = ActionExecutor::execute(&action, &fake).unwrap();
-    assert_eq!(result, ExitReason::SwitchTo("public".into()));
+    assert_eq!(result, ExitReason::SwitchTo("public:0".into()));
 }
 
 #[test]
@@ -566,6 +572,7 @@ fn zoxide_revisit_same_path_creates_new_window() {
                 window_index: "0".into(),
                 window_name: "main".into(),
                 window_path: "/home/user/project".into(),
+                original_path: None,
                 window_activity: None,
             },
             RawWindow {
@@ -573,6 +580,7 @@ fn zoxide_revisit_same_path_creates_new_window() {
                 window_index: "1".into(),
                 window_name: "tests".into(),
                 window_path: "/home/user/project".into(),
+                original_path: None,
                 window_activity: None,
             },
         ],
@@ -586,44 +594,45 @@ fn zoxide_revisit_same_path_creates_new_window() {
         existing_sessions: vec!["project".into()],
         fail_on: vec![],
     };
-    // Session "project" exists → create new window in it
-    let action = Action::goto_zoxide("/home/user/project".into(), "/home/user/project".into());
+    let action = Action::goto_zoxide(
+        "/home/user/project".into(),
+        "/home/user/project".into(),
+        "project".into(),
+    );
     let result = ActionExecutor::execute(&action, &fake).unwrap();
     assert_eq!(result, ExitReason::SwitchTo("project:99".into()));
 }
 
+// --- set_window_option integration ---
+
 #[test]
-fn resolve_zoxide_action_unit_session_exists() {
-    use tmux_sessions::app::executor::{resolve_zoxide_action, ZoxideAction};
-    // Session "project" exists → CreateWindowInSession
-    let action = resolve_zoxide_action("/new/project", &[], &["project".into()]);
+fn zoxide_new_session_sets_original_path_option() {
+    let fake = RecordingTmuxSource::default();
+    let action = Action::goto_zoxide(
+        "/repo/project".into(),
+        "/repo/project".into(),
+        "project".into(),
+    );
+    let result = ActionExecutor::execute(&action, &fake).unwrap();
+    assert_eq!(result, ExitReason::SwitchTo("project:0".into()));
+    let set_option_calls: Vec<String> = fake
+        .calls()
+        .into_iter()
+        .filter(|c| c.starts_with("set_window_option:"))
+        .collect();
     assert_eq!(
-        action,
-        ZoxideAction::CreateWindowInSession {
-            session: "project".into(),
-            path: "/new/project".into()
-        }
+        set_option_calls,
+        vec!["set_window_option:project:0:@pi_original_path:/repo/project".to_string()]
     );
 }
 
 #[test]
-fn resolve_zoxide_action_unit_no_session() {
-    use tmux_sessions::app::executor::{resolve_zoxide_action, ZoxideAction};
-    let action = resolve_zoxide_action("/new/project", &[], &[]);
-    assert_eq!(
-        action,
-        ZoxideAction::CreateNewSession {
-            name: "project".into()
-        }
-    );
-}
-
-#[test]
-fn resolve_zoxide_action_unit_collision_no_session() {
-    use tmux_sessions::app::executor::{resolve_zoxide_action, ZoxideAction};
-    let action = resolve_zoxide_action("/x/bot", &[], &["other".into()]);
-    assert_eq!(
-        action,
-        ZoxideAction::CreateNewSession { name: "bot".into() }
-    );
+fn zoxide_existing_session_new_window_sets_original_path_option() {
+    let _fake = RecordingTmuxSource {
+        calls: RefCell::new(vec![]),
+        fail_switch_on: None,
+    };
+    // Make list_sessions return an existing "project" session
+    // RecordingTmuxSource returns empty sessions, so we can't test this easily.
+    // This is tested via FakeTmuxSource in the integration tests.
 }

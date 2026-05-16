@@ -173,6 +173,15 @@ mod tests {
             Ok(())
         }
 
+        fn set_window_option(
+            &self,
+            _target: &str,
+            _option: &str,
+            _value: &str,
+        ) -> Result<(), ActionError> {
+            Ok(())
+        }
+
         fn capture_pane(&self, _target: &str, _line_count: usize) -> Result<String, AdapterError> {
             if self.capture_fails {
                 return Err(AdapterError::TmuxCommand {
@@ -287,6 +296,7 @@ mod tests {
                 window_index: "0".to_string(),
                 window_name: "main".to_string(),
                 window_path: "/tmp".to_string(),
+                original_path: None,
                 window_activity: None,
             }],
             capture_fails: false,
@@ -340,6 +350,7 @@ mod tests {
                 window_index: "0".to_string(),
                 window_name: "main".to_string(),
                 window_path: "/tmp".to_string(),
+                original_path: None,
                 window_activity: None,
             }],
             capture_fails: false,
@@ -409,6 +420,7 @@ mod tests {
                 window_index: "0".to_string(),
                 window_name: "main".to_string(),
                 window_path: "/tmp".to_string(),
+                original_path: None,
                 window_activity: None,
             }],
             capture_fails: false,
@@ -461,6 +473,7 @@ mod tests {
                 window_index: "7".to_string(),
                 window_name: "main".to_string(),
                 window_path: "/tmp".to_string(),
+                original_path: None,
                 window_activity: None,
             }],
             capture_fails: false,
@@ -512,6 +525,7 @@ mod tests {
                 window_index: "0".to_string(),
                 window_name: "main".to_string(),
                 window_path: "/tmp".to_string(),
+                original_path: None,
                 window_activity: None,
             }],
             capture_fails: false,
@@ -564,6 +578,7 @@ mod tests {
                 window_index: "0".to_string(),
                 window_name: "main".to_string(),
                 window_path: "/tmp".to_string(),
+                original_path: None,
                 window_activity: None,
             }],
             capture_fails: false,

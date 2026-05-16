@@ -22,7 +22,7 @@ impl Default for TmuxAdapter {
 
 impl TmuxSource for TmuxAdapter {
     fn list_windows(&self) -> Result<Vec<RawWindow>, AdapterError> {
-        let fmt = "#{session_name}\t#{window_index}\t#{window_name}\t#{pane_current_path}\t#{window_activity}";
+        let fmt = "#{session_name}\t#{window_index}\t#{window_name}\t#{pane_current_path}\t#{@pi_original_path}\t#{window_activity}";
         let output = run_tmux(&["list-windows", "-a", "-F", fmt])?;
         parse_windows(&output)
     }
@@ -166,6 +166,28 @@ impl TmuxSource for TmuxAdapter {
         if !output.status.success() {
             return Err(ActionError::KillFailed {
                 target: name.to_string(),
+                detail: String::from_utf8_lossy(&output.stderr).trim().to_string(),
+            });
+        }
+        Ok(())
+    }
+
+    fn set_window_option(
+        &self,
+        target: &str,
+        option: &str,
+        value: &str,
+    ) -> Result<(), ActionError> {
+        let output = Command::new("tmux")
+            .args(["set-option", "-w", "-t", target, option, value])
+            .output()
+            .map_err(|e| ActionError::GotoFailed {
+                target: target.to_string(),
+                detail: e.to_string(),
+            })?;
+        if !output.status.success() {
+            return Err(ActionError::GotoFailed {
+                target: target.to_string(),
                 detail: String::from_utf8_lossy(&output.stderr).trim().to_string(),
             });
         }

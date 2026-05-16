@@ -15,6 +15,7 @@ fn make_loaded_loader(
             window_index: format!("{i}"),
             window_name: format!("w{i}"),
             window_path: format!("/path/{i}"),
+            original_path: None,
             window_activity: None,
         })
         .collect();
