@@ -40,6 +40,7 @@ impl FakeTmuxSource {
                 window_name: name.into(),
                 window_path: path.into(),
                 original_path: None,
+                display_name: None,
                 window_activity: None,
             }],
             sessions: vec![RawSession {

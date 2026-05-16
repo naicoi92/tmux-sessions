@@ -104,13 +104,21 @@ impl GroupedList {
 
         let mut display_by_session: HashMap<String, String> = HashMap::new();
         for (session, path) in &path_by_session {
+            let explicit_display = snapshot.entries.iter().find_map(|entry| {
+                (entry.session_name.as_deref() == Some(session))
+                    .then(|| entry.session_display_name.clone())
+                    .flatten()
+            });
+            if let Some(display) = explicit_display {
+                display_by_session.insert(session.clone(), display);
+                continue;
+            }
+
             let bn = crate::domain::path_name::basename_from_path(path);
             let collision_count = basename_groups.get(&bn).map(|v| v.len()).unwrap_or(1);
             if collision_count <= 1 {
-                // Unique path basename → session name directly
                 display_by_session.insert(session.clone(), session.clone());
             } else {
-                // Collision → disambiguate via path
                 let display = crate::domain::path_name::disambiguate_name(path, &all_session_paths);
                 display_by_session.insert(session.clone(), display);
             }
@@ -483,7 +491,6 @@ mod tests {
 
     #[test]
     fn single_session_multi_window_shows_basename_not_path() {
-        // Session "public-api" with 2 windows same basename → display just "public-api"
         let snapshot = Snapshot::new(
             vec![
                 Entry::window(
@@ -519,6 +526,47 @@ mod tests {
             } => {
                 assert_eq!(display_name, "public-api");
                 assert_eq!(windows.len(), 2);
+            }
+            other => panic!("expected SessionGroup, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn persisted_display_name_overrides_sanitized_session_id() {
+        let snapshot = Snapshot::new(
+            vec![
+                Entry::window(
+                    "_".into(),
+                    "0".into(),
+                    "editor".into(),
+                    "/current/pane/path".into(),
+                    SortPriority::CurrentWindow,
+                    true,
+                    None,
+                    None,
+                )
+                .with_session_display_name(Some("/".into())),
+                Entry::window(
+                    "_".into(),
+                    "1".into(),
+                    "shell".into(),
+                    "/current/pane/path".into(),
+                    SortPriority::CurrentSessionOtherWindow,
+                    false,
+                    None,
+                    None,
+                )
+                .with_session_display_name(Some("/".into())),
+            ],
+            "_".into(),
+            "_:0".into(),
+        );
+
+        let grouped = GroupedList::from_snapshot(&snapshot);
+
+        match &grouped.items[0] {
+            GroupedListItem::SessionGroup { display_name, .. } => {
+                assert_eq!(display_name, "/");
             }
             other => panic!("expected SessionGroup, got {other:?}"),
         }

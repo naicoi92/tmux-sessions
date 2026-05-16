@@ -480,6 +480,7 @@ fn zoxide_existing_window_same_path_switches_to_it() {
             window_name: "vim".into(),
             window_path: "/projects/a/bot".into(),
             original_path: None,
+            display_name: None,
             window_activity: None,
         }],
         sessions: vec![RawSession {
@@ -511,6 +512,7 @@ fn zoxide_different_path_same_basename_creates_new_window_in_existing_session() 
             window_name: "vim".into(),
             window_path: "/projects/a/bot".into(),
             original_path: None,
+            display_name: None,
             window_activity: None,
         }],
         sessions: vec![RawSession {
@@ -541,6 +543,7 @@ fn zoxide_public_vs_public_api_no_collision() {
             window_name: "editor".into(),
             window_path: "/projects/public-api".into(),
             original_path: None,
+            display_name: None,
             window_activity: None,
         }],
         sessions: vec![RawSession {
@@ -573,6 +576,7 @@ fn zoxide_revisit_same_path_creates_new_window() {
                 window_name: "main".into(),
                 window_path: "/home/user/project".into(),
                 original_path: None,
+                display_name: None,
                 window_activity: None,
             },
             RawWindow {
@@ -581,6 +585,7 @@ fn zoxide_revisit_same_path_creates_new_window() {
                 window_name: "tests".into(),
                 window_path: "/home/user/project".into(),
                 original_path: None,
+                display_name: None,
                 window_activity: None,
             },
         ],
@@ -606,7 +611,7 @@ fn zoxide_revisit_same_path_creates_new_window() {
 // --- set_window_option integration ---
 
 #[test]
-fn zoxide_new_session_sets_original_path_option() {
+fn zoxide_new_session_sets_window_metadata_options() {
     let fake = RecordingTmuxSource::default();
     let action = Action::goto_zoxide(
         "/repo/project".into(),
@@ -622,7 +627,10 @@ fn zoxide_new_session_sets_original_path_option() {
         .collect();
     assert_eq!(
         set_option_calls,
-        vec!["set_window_option:project:0:@pi_original_path:/repo/project".to_string()]
+        vec![
+            "set_window_option:project:0:@pi_original_path:/repo/project".to_string(),
+            "set_window_option:project:0:@pi_display_name:project".to_string(),
+        ]
     );
 }
 

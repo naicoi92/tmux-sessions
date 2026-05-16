@@ -30,6 +30,8 @@ pub struct Entry {
     pub window_name: Option<String>,
     /// Raw window index from tmux, used for display reconstruction.
     pub window_index: Option<String>,
+    /// User-facing session display name, persisted separately from tmux session id.
+    pub session_display_name: Option<String>,
 }
 
 impl Entry {
@@ -65,7 +67,13 @@ impl Entry {
             session_activity,
             window_name: Some(window_name),
             window_index: Some(window_index),
+            session_display_name: None,
         }
+    }
+
+    pub fn with_session_display_name(mut self, display_name: Option<String>) -> Self {
+        self.session_display_name = display_name;
+        self
     }
 
     /// Rebuild display string with a different session display name.
@@ -94,6 +102,7 @@ impl Entry {
             session_activity: None,
             window_name: None,
             window_index: None,
+            session_display_name: None,
         }
     }
 

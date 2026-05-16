@@ -76,19 +76,25 @@ fn execute_zoxide_goto(
         .unwrap_or_else(|_| tmux.has_session(&session_id).unwrap_or(false));
 
     if session_exists {
-        switch_to_new_window(path, &session_id, tmux)
+        switch_to_new_window(path, &session_id, &raw_name, tmux)
     } else {
-        switch_to_new_session(path, &session_id, tmux)
+        switch_to_new_session(path, &session_id, &raw_name, tmux)
     }
+}
+
+fn persist_window_metadata(tmux: &dyn TmuxSource, target: &str, path: &str, display_name: &str) {
+    let _ = tmux.set_window_option(target, "@pi_original_path", path);
+    let _ = tmux.set_window_option(target, "@pi_display_name", display_name);
 }
 
 fn switch_to_new_window(
     path: &str,
     session_id: &str,
+    display_name: &str,
     tmux: &dyn TmuxSource,
 ) -> Result<ExitReason, ActionError> {
     let target = tmux.new_window(session_id, path)?;
-    let _ = tmux.set_window_option(&target, "@pi_original_path", path);
+    persist_window_metadata(tmux, &target, path, display_name);
     tmux.switch_client(&target)?;
     Ok(ExitReason::SwitchTo(target))
 }
@@ -96,11 +102,12 @@ fn switch_to_new_window(
 fn switch_to_new_session(
     path: &str,
     session_id: &str,
+    display_name: &str,
     tmux: &dyn TmuxSource,
 ) -> Result<ExitReason, ActionError> {
     tmux.new_session(session_id, path)?;
     let target = format!("{session_id}:0");
-    let _ = tmux.set_window_option(&target, "@pi_original_path", path);
+    persist_window_metadata(tmux, &target, path, display_name);
     tmux.switch_client(session_id)?;
     Ok(ExitReason::SwitchTo(target))
 }

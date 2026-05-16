@@ -11,18 +11,27 @@ pub fn parse_windows(output: &str) -> Result<Vec<RawWindow>, AdapterError> {
         .filter(|line| !line.trim().is_empty())
         .map(|line| {
             let parts: Vec<&str> = line.split('\t').collect();
-            if parts.len() < 5 || parts.len() > 6 {
+            if parts.len() < 5 || parts.len() > 7 {
                 return Err(AdapterError::TmuxParse {
                     input: line.to_string(),
-                    detail: format!("expected 5 or 6 tab-separated fields, got {}", parts.len()),
+                    detail: format!("expected 5 to 7 tab-separated fields, got {}", parts.len()),
                 });
             }
-            let original_path = if parts.len() == 6 && !parts[4].is_empty() {
+            let original_path = if parts.len() >= 6 && !parts[4].is_empty() {
                 Some(parts[4].to_string())
             } else {
                 None
             };
-            let activity_idx = if parts.len() == 6 { 5 } else { 4 };
+            let display_name = if parts.len() == 7 && !parts[5].is_empty() {
+                Some(parts[5].to_string())
+            } else {
+                None
+            };
+            let activity_idx = match parts.len() {
+                5 => 4,
+                6 => 5,
+                _ => 6,
+            };
             let window_activity = parse_activity(parts[activity_idx]);
             Ok(RawWindow {
                 session_name: parts[0].to_string(),
@@ -30,6 +39,7 @@ pub fn parse_windows(output: &str) -> Result<Vec<RawWindow>, AdapterError> {
                 window_name: parts[2].to_string(),
                 window_path: parts[3].to_string(),
                 original_path,
+                display_name,
                 window_activity,
             })
         })
@@ -174,7 +184,7 @@ mod tests {
 
     #[test]
     fn parse_windows_too_many_fields_errors() {
-        let input = "s1\t0\tmain\t/home/user\t1714000000\textra\tseventh";
+        let input = "s1\t0\tmain\t/home/user\t/original\tdisplay\t1714000000\textra";
         let result = parse_windows(input);
         assert!(result.is_err());
     }

@@ -31,6 +31,7 @@ pub fn map_raw_windows_to_entries(
                 w.window_activity,
                 session_activity,
             )
+            .with_session_display_name(w.display_name)
         })
         .collect()
 }
@@ -49,6 +50,7 @@ mod tests {
                 window_name: "main".into(),
                 window_path: "/home".into(),
                 original_path: None,
+                display_name: None,
                 window_activity: None,
             },
             RawWindow {
@@ -57,6 +59,7 @@ mod tests {
                 window_name: "other".into(),
                 window_path: "/tmp".into(),
                 original_path: None,
+                display_name: None,
                 window_activity: None,
             },
         ];
@@ -79,6 +82,7 @@ mod tests {
                 window_name: "main".into(),
                 window_path: "/home".into(),
                 original_path: None,
+                display_name: None,
                 window_activity: Some(1714000000),
             },
             RawWindow {
@@ -87,6 +91,7 @@ mod tests {
                 window_name: "other".into(),
                 window_path: "/tmp".into(),
                 original_path: None,
+                display_name: None,
                 window_activity: None,
             },
             RawWindow {
@@ -95,6 +100,7 @@ mod tests {
                 window_name: "idle".into(),
                 window_path: "/var".into(),
                 original_path: None,
+                display_name: None,
                 window_activity: Some(1713000000),
             },
         ];
@@ -116,6 +122,7 @@ mod tests {
                 window_name: "a".into(),
                 window_path: "/a".into(),
                 original_path: None,
+                display_name: None,
                 window_activity: None,
             },
             RawWindow {
@@ -124,6 +131,7 @@ mod tests {
                 window_name: "b".into(),
                 window_path: "/b".into(),
                 original_path: None,
+                display_name: None,
                 window_activity: None,
             },
         ];
@@ -141,6 +149,7 @@ mod tests {
             window_name: "other".into(),
             window_path: "/tmp".into(),
             original_path: None,
+            display_name: None,
             window_activity: Some(111),
         }];
         let mut activities = HashMap::new();
@@ -161,6 +170,7 @@ mod tests {
             window_name: "main".into(),
             window_path: "/repo/project/subdir".into(),
             original_path: Some("/repo/project".into()),
+            display_name: None,
             window_activity: None,
         }];
 
@@ -179,6 +189,7 @@ mod tests {
             window_name: "old".into(),
             window_path: "/repo/legacy".into(),
             original_path: None,
+            display_name: None,
             window_activity: None,
         }];
 

@@ -12,6 +12,7 @@ fn w(session: &str, index: &str, name: &str) -> RawWindow {
         window_name: name.into(),
         window_path: format!("/{session}"),
         original_path: None,
+        display_name: None,
         window_activity: None,
     }
 }
@@ -23,6 +24,7 @@ fn wa(session: &str, index: &str, name: &str, activity: Option<i64>) -> RawWindo
         window_name: name.into(),
         window_path: format!("/{session}"),
         original_path: None,
+        display_name: None,
         window_activity: activity,
     }
 }

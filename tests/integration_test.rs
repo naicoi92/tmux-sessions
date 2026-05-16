@@ -201,6 +201,7 @@ fn full_board_sort_with_fake_adapters() {
             window_name: "remote".into(),
             window_path: "/remote".into(),
             original_path: None,
+            display_name: None,
             window_activity: None,
         },
         RawWindow {
@@ -209,6 +210,7 @@ fn full_board_sort_with_fake_adapters() {
             window_name: "main".into(),
             window_path: "/home".into(),
             original_path: None,
+            display_name: None,
             window_activity: None,
         },
         RawWindow {
@@ -217,6 +219,7 @@ fn full_board_sort_with_fake_adapters() {
             window_name: "edit".into(),
             window_path: "/home".into(),
             original_path: None,
+            display_name: None,
             window_activity: None,
         },
     ];

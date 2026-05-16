@@ -128,6 +128,7 @@ mod tests {
             window_name: name.into(),
             window_path: format!("/{session}"),
             original_path: None,
+            display_name: None,
             window_activity: None,
         }
     }

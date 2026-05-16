@@ -100,6 +100,7 @@ mod tests {
                 window_name: "main".into(),
                 window_path: "/home".into(),
                 original_path: None,
+                display_name: None,
                 window_activity: None,
             },
             RawWindow {
@@ -108,6 +109,7 @@ mod tests {
                 window_name: "other".into(),
                 window_path: "/home".into(),
                 original_path: None,
+                display_name: None,
                 window_activity: None,
             },
         ];

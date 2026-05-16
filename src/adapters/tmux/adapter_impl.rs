@@ -42,7 +42,7 @@ fn run_action_command(
 
 impl TmuxSource for TmuxAdapter {
     fn list_windows(&self) -> Result<Vec<RawWindow>, AdapterError> {
-        let fmt = "#{session_name}\t#{window_index}\t#{window_name}\t#{pane_current_path}\t#{@pi_original_path}\t#{window_activity}";
+        let fmt = "#{session_name}\t#{window_index}\t#{window_name}\t#{pane_current_path}\t#{@pi_original_path}\t#{@pi_display_name}\t#{window_activity}";
         let output = run_tmux(&["list-windows", "-a", "-F", fmt])?;
         parse_windows(&output)
     }

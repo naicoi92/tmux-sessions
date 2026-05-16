@@ -8,6 +8,8 @@ pub struct RawWindow {
     /// When present, used instead of `window_path` (which is `pane_current_path`
     /// and changes on `cd`).
     pub original_path: Option<String>,
+    /// Original zoxide display name saved at creation time.
+    pub display_name: Option<String>,
     pub window_activity: Option<i64>,
 }
 
