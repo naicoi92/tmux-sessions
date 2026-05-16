@@ -61,6 +61,27 @@ impl Default for FakeTmuxSource {
     }
 }
 
+fn fake_goto_failure(target: &str) -> ActionError {
+    ActionError::GotoFailed {
+        target: target.to_string(),
+        detail: "fake failure".to_string(),
+    }
+}
+
+fn fake_kill_failure(target: &str) -> ActionError {
+    ActionError::KillFailed {
+        target: target.to_string(),
+        detail: "fake failure".to_string(),
+    }
+}
+
+fn fake_capture_error(target: &str) -> AdapterError {
+    AdapterError::TmuxCommand {
+        command: format!("capture-pane -t {target}"),
+        detail: "fake capture unavailable".to_string(),
+    }
+}
+
 impl TmuxSource for FakeTmuxSource {
     fn list_windows(&self) -> Result<Vec<RawWindow>, AdapterError> {
         Ok(self.windows.clone())
@@ -82,10 +103,7 @@ impl TmuxSource for FakeTmuxSource {
             .fail_on
             .contains(&FakeTmuxCall::SelectWindow(target.to_string()))
         {
-            return Err(ActionError::GotoFailed {
-                target: target.to_string(),
-                detail: "fake failure".to_string(),
-            });
+            return Err(fake_goto_failure(target));
         }
         Ok(())
     }
@@ -94,10 +112,7 @@ impl TmuxSource for FakeTmuxSource {
             name: name.to_string(),
             path: path.to_string(),
         }) {
-            return Err(ActionError::GotoFailed {
-                target: name.to_string(),
-                detail: "fake failure".to_string(),
-            });
+            return Err(fake_goto_failure(name));
         }
         Ok(())
     }
@@ -109,10 +124,7 @@ impl TmuxSource for FakeTmuxSource {
             .fail_on
             .contains(&FakeTmuxCall::SwitchClient(target.to_string()))
         {
-            return Err(ActionError::GotoFailed {
-                target: target.to_string(),
-                detail: "fake failure".to_string(),
-            });
+            return Err(fake_goto_failure(target));
         }
         Ok(())
     }
@@ -121,10 +133,7 @@ impl TmuxSource for FakeTmuxSource {
             .fail_on
             .contains(&FakeTmuxCall::KillWindow(target.to_string()))
         {
-            return Err(ActionError::KillFailed {
-                target: target.to_string(),
-                detail: "fake failure".to_string(),
-            });
+            return Err(fake_kill_failure(target));
         }
         Ok(())
     }
@@ -133,10 +142,7 @@ impl TmuxSource for FakeTmuxSource {
             .fail_on
             .contains(&FakeTmuxCall::KillSession(name.to_string()))
         {
-            return Err(ActionError::KillFailed {
-                target: name.to_string(),
-                detail: "fake failure".to_string(),
-            });
+            return Err(fake_kill_failure(name));
         }
         Ok(())
     }
@@ -149,10 +155,7 @@ impl TmuxSource for FakeTmuxSource {
         Ok(())
     }
     fn capture_pane(&self, target: &str, _line_count: usize) -> Result<String, AdapterError> {
-        Err(AdapterError::TmuxCommand {
-            command: format!("capture-pane -t {target}"),
-            detail: "fake capture unavailable".to_string(),
-        })
+        Err(fake_capture_error(target))
     }
 
     fn capture_pane_with_size(
@@ -162,9 +165,6 @@ impl TmuxSource for FakeTmuxSource {
         _width: Option<u16>,
         _height: Option<u16>,
     ) -> Result<String, AdapterError> {
-        Err(AdapterError::TmuxCommand {
-            command: format!("capture-pane -t {target}"),
-            detail: "fake capture unavailable".to_string(),
-        })
+        Err(fake_capture_error(target))
     }
 }

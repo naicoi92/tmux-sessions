@@ -41,6 +41,13 @@ impl GroupedRow {
     }
 }
 
+fn match_score(entry_data: &HashMap<String, (u32, Vec<u32>)>, entry: &Entry) -> u32 {
+    entry_data
+        .get(&entry.target)
+        .map(|(score, _)| *score)
+        .unwrap_or(0)
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct GroupedList {
     pub items: Vec<GroupedListItem>,
@@ -203,9 +210,8 @@ impl GroupedList {
 
     pub fn filtered_rows(&self, filter: &str, matcher: &NucleoMatcher) -> Vec<GroupedRow> {
         let trimmed_filter = filter.trim();
-        let has_filter = !trimmed_filter.is_empty();
 
-        if !has_filter {
+        if trimmed_filter.is_empty() {
             return self.all_rows();
         }
 
@@ -216,8 +222,8 @@ impl GroupedList {
     }
 
     fn build_filtered_rows(&self, matched: &[MatchResult]) -> Vec<GroupedRow> {
-        let mut entry_data: std::collections::HashMap<String, (u32, Vec<u32>)> =
-            std::collections::HashMap::with_capacity(matched.len());
+        let mut entry_data: HashMap<String, (u32, Vec<u32>)> =
+            HashMap::with_capacity(matched.len());
         for result in matched {
             entry_data.insert(
                 result.entry.target.clone(),
@@ -268,12 +274,8 @@ impl GroupedList {
             }
         }
 
-        standalone_matches.sort_by_key(|e| {
-            std::cmp::Reverse(entry_data.get(&e.target).map(|(s, _)| *s).unwrap_or(0))
-        });
-        zoxide_matches.sort_by_key(|e| {
-            std::cmp::Reverse(entry_data.get(&e.target).map(|(s, _)| *s).unwrap_or(0))
-        });
+        standalone_matches.sort_by_key(|e| std::cmp::Reverse(match_score(&entry_data, e)));
+        zoxide_matches.sort_by_key(|e| std::cmp::Reverse(match_score(&entry_data, e)));
 
         let mut rows = Vec::new();
         for (_session, display_name, windows) in session_matches {

@@ -66,49 +66,43 @@ fn execute_zoxide_goto(
         .unwrap_or_else(|| extract_session_name(path));
     let session_id = sanitize_session_name(&raw_name);
 
-    match tmux.list_sessions() {
-        Ok(sessions) => {
-            let existing: Vec<String> = sessions.iter().map(|s| s.session_name.clone()).collect();
+    let session_exists = tmux
+        .list_sessions()
+        .map(|sessions| {
+            sessions
+                .iter()
+                .any(|session| session.session_name == session_id)
+        })
+        .unwrap_or_else(|_| tmux.has_session(&session_id).unwrap_or(false));
 
-            if existing.iter().any(|s| s == &session_id) {
-                // Session exists → create new window in it
-                let target = tmux.new_window(&session_id, path)?;
-                let _ = tmux.set_window_option(&target, "@pi_original_path", path);
-                tmux.switch_client(&target)?;
-                Ok(ExitReason::SwitchTo(target))
-            } else {
-                // No session yet → create new one
-                tmux.new_session(&session_id, path)?;
-                let target = format!("{session_id}:0");
-                let _ = tmux.set_window_option(&target, "@pi_original_path", path);
-                tmux.switch_client(&session_id)?;
-                Ok(ExitReason::SwitchTo(target))
-            }
-        }
-        Err(_) => execute_zoxide_goto_fallback(path, &session_id, tmux),
+    if session_exists {
+        switch_to_new_window(path, &session_id, tmux)
+    } else {
+        switch_to_new_session(path, &session_id, tmux)
     }
 }
 
-/// Fallback when tmux session listing fails.
-/// If session with basename already exists: create window in it.
-/// Otherwise: create new session.
-fn execute_zoxide_goto_fallback(
+fn switch_to_new_window(
     path: &str,
     session_id: &str,
     tmux: &dyn TmuxSource,
 ) -> Result<ExitReason, ActionError> {
-    if tmux.has_session(session_id).unwrap_or(false) {
-        let target = tmux.new_window(session_id, path)?;
-        let _ = tmux.set_window_option(&target, "@pi_original_path", path);
-        tmux.switch_client(&target)?;
-        Ok(ExitReason::SwitchTo(target))
-    } else {
-        tmux.new_session(session_id, path)?;
-        let target = format!("{session_id}:0");
-        let _ = tmux.set_window_option(&target, "@pi_original_path", path);
-        tmux.switch_client(session_id)?;
-        Ok(ExitReason::SwitchTo(target))
-    }
+    let target = tmux.new_window(session_id, path)?;
+    let _ = tmux.set_window_option(&target, "@pi_original_path", path);
+    tmux.switch_client(&target)?;
+    Ok(ExitReason::SwitchTo(target))
+}
+
+fn switch_to_new_session(
+    path: &str,
+    session_id: &str,
+    tmux: &dyn TmuxSource,
+) -> Result<ExitReason, ActionError> {
+    tmux.new_session(session_id, path)?;
+    let target = format!("{session_id}:0");
+    let _ = tmux.set_window_option(&target, "@pi_original_path", path);
+    tmux.switch_client(session_id)?;
+    Ok(ExitReason::SwitchTo(target))
 }
 
 fn execute_kill(
@@ -171,11 +165,7 @@ pub fn sanitize_session_name(basename: &str) -> String {
         }
     }
 
-    if result.is_empty() {
-        "_".to_string()
-    } else {
-        result
-    }
+    result
 }
 
 #[cfg(test)]

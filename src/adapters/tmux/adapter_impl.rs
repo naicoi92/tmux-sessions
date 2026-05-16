@@ -4,7 +4,7 @@ use crate::adapters::tmux::parser::{parse_sessions, parse_windows};
 use crate::adapters::tmux::raw::{RawSession, RawWindow};
 use crate::adapters::tmux::TmuxSource;
 use crate::domain::error::{ActionError, AdapterError};
-use std::process::Command;
+use std::process::{Command, Output};
 
 pub struct TmuxAdapter;
 
@@ -18,6 +18,26 @@ impl Default for TmuxAdapter {
     fn default() -> Self {
         Self::new()
     }
+}
+
+fn stderr_detail(output: &Output) -> String {
+    String::from_utf8_lossy(&output.stderr).trim().to_string()
+}
+
+fn run_action_command(
+    args: &[&str],
+    error: impl Fn(String) -> ActionError,
+) -> Result<Output, ActionError> {
+    let output = Command::new("tmux")
+        .args(args)
+        .output()
+        .map_err(|e| error(e.to_string()))?;
+
+    if !output.status.success() {
+        return Err(error(stderr_detail(&output)));
+    }
+
+    Ok(output)
 }
 
 impl TmuxSource for TmuxAdapter {
@@ -55,42 +75,28 @@ impl TmuxSource for TmuxAdapter {
     }
 
     fn select_window(&self, target: &str) -> Result<(), ActionError> {
-        let output = Command::new("tmux")
-            .args(["select-window", "-t", target])
-            .output()
-            .map_err(|e| ActionError::GotoFailed {
+        run_action_command(&["select-window", "-t", target], |detail| {
+            ActionError::GotoFailed {
                 target: target.to_string(),
-                detail: e.to_string(),
-            })?;
-        if !output.status.success() {
-            return Err(ActionError::GotoFailed {
-                target: target.to_string(),
-                detail: String::from_utf8_lossy(&output.stderr).trim().to_string(),
-            });
-        }
+                detail,
+            }
+        })?;
         Ok(())
     }
 
     fn new_session(&self, name: &str, path: &str) -> Result<(), ActionError> {
-        let output = Command::new("tmux")
-            .args(["new-session", "-d", "-s", name, "-c", path])
-            .output()
-            .map_err(|e| ActionError::GotoFailed {
+        run_action_command(&["new-session", "-d", "-s", name, "-c", path], |detail| {
+            ActionError::GotoFailed {
                 target: name.to_string(),
-                detail: e.to_string(),
-            })?;
-        if !output.status.success() {
-            return Err(ActionError::GotoFailed {
-                target: name.to_string(),
-                detail: String::from_utf8_lossy(&output.stderr).trim().to_string(),
-            });
-        }
+                detail,
+            }
+        })?;
         Ok(())
     }
 
     fn new_window(&self, session: &str, path: &str) -> Result<String, ActionError> {
-        let output = Command::new("tmux")
-            .args([
+        let output = run_action_command(
+            &[
                 "new-window",
                 "-P",
                 "-F",
@@ -99,18 +105,12 @@ impl TmuxSource for TmuxAdapter {
                 session,
                 "-c",
                 path,
-            ])
-            .output()
-            .map_err(|e| ActionError::GotoFailed {
+            ],
+            |detail| ActionError::GotoFailed {
                 target: session.to_string(),
-                detail: e.to_string(),
-            })?;
-        if !output.status.success() {
-            return Err(ActionError::GotoFailed {
-                target: session.to_string(),
-                detail: String::from_utf8_lossy(&output.stderr).trim().to_string(),
-            });
-        }
+                detail,
+            },
+        )?;
         let window_index = String::from_utf8_lossy(&output.stdout).trim().to_string();
         if window_index.is_empty() {
             return Err(ActionError::GotoFailed {
@@ -122,53 +122,32 @@ impl TmuxSource for TmuxAdapter {
     }
 
     fn switch_client(&self, target: &str) -> Result<(), ActionError> {
-        let output = Command::new("tmux")
-            .args(["switch-client", "-t", target])
-            .output()
-            .map_err(|e| ActionError::GotoFailed {
+        run_action_command(&["switch-client", "-t", target], |detail| {
+            ActionError::GotoFailed {
                 target: target.to_string(),
-                detail: e.to_string(),
-            })?;
-        if !output.status.success() {
-            return Err(ActionError::GotoFailed {
-                target: target.to_string(),
-                detail: String::from_utf8_lossy(&output.stderr).trim().to_string(),
-            });
-        }
+                detail,
+            }
+        })?;
         Ok(())
     }
 
     fn kill_window(&self, target: &str) -> Result<(), ActionError> {
-        let output = Command::new("tmux")
-            .args(["kill-window", "-t", target])
-            .output()
-            .map_err(|e| ActionError::KillFailed {
+        run_action_command(&["kill-window", "-t", target], |detail| {
+            ActionError::KillFailed {
                 target: target.to_string(),
-                detail: e.to_string(),
-            })?;
-        if !output.status.success() {
-            return Err(ActionError::KillFailed {
-                target: target.to_string(),
-                detail: String::from_utf8_lossy(&output.stderr).trim().to_string(),
-            });
-        }
+                detail,
+            }
+        })?;
         Ok(())
     }
 
     fn kill_session(&self, name: &str) -> Result<(), ActionError> {
-        let output = Command::new("tmux")
-            .args(["kill-session", "-t", name])
-            .output()
-            .map_err(|e| ActionError::KillFailed {
+        run_action_command(&["kill-session", "-t", name], |detail| {
+            ActionError::KillFailed {
                 target: name.to_string(),
-                detail: e.to_string(),
-            })?;
-        if !output.status.success() {
-            return Err(ActionError::KillFailed {
-                target: name.to_string(),
-                detail: String::from_utf8_lossy(&output.stderr).trim().to_string(),
-            });
-        }
+                detail,
+            }
+        })?;
         Ok(())
     }
 
@@ -178,19 +157,13 @@ impl TmuxSource for TmuxAdapter {
         option: &str,
         value: &str,
     ) -> Result<(), ActionError> {
-        let output = Command::new("tmux")
-            .args(["set-option", "-w", "-t", target, option, value])
-            .output()
-            .map_err(|e| ActionError::GotoFailed {
+        run_action_command(
+            &["set-option", "-w", "-t", target, option, value],
+            |detail| ActionError::GotoFailed {
                 target: target.to_string(),
-                detail: e.to_string(),
-            })?;
-        if !output.status.success() {
-            return Err(ActionError::GotoFailed {
-                target: target.to_string(),
-                detail: String::from_utf8_lossy(&output.stderr).trim().to_string(),
-            });
-        }
+                detail,
+            },
+        )?;
         Ok(())
     }
 

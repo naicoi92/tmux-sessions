@@ -121,12 +121,12 @@ fn install_panic_hook() {
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let debug = args.contains(&"--debug".to_string());
+    let debug = args.iter().any(|arg| arg == "--debug");
 
     let filtered: Vec<&str> = args
         .iter()
         .map(String::as_str)
-        .filter(|a| *a != "--debug")
+        .filter(|arg| *arg != "--debug")
         .collect();
 
     if filtered.len() > 1 {

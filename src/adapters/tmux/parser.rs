@@ -1,6 +1,10 @@
 use crate::adapters::tmux::raw::{RawSession, RawWindow};
 use crate::domain::error::AdapterError;
 
+fn parse_activity(value: &str) -> Option<i64> {
+    value.trim().parse().ok()
+}
+
 pub fn parse_windows(output: &str) -> Result<Vec<RawWindow>, AdapterError> {
     output
         .lines()
@@ -19,11 +23,7 @@ pub fn parse_windows(output: &str) -> Result<Vec<RawWindow>, AdapterError> {
                 None
             };
             let activity_idx = if parts.len() == 6 { 5 } else { 4 };
-            let window_activity = if parts[activity_idx].is_empty() {
-                None
-            } else {
-                parts[activity_idx].parse::<i64>().ok()
-            };
+            let window_activity = parse_activity(parts[activity_idx]);
             Ok(RawWindow {
                 session_name: parts[0].to_string(),
                 window_index: parts[1].to_string(),
@@ -48,11 +48,7 @@ pub fn parse_sessions(output: &str) -> Result<Vec<RawSession>, AdapterError> {
                     detail: format!("expected 3 tab-separated fields, got {}", parts.len()),
                 });
             }
-            let session_activity = if parts[2].is_empty() {
-                None
-            } else {
-                parts[2].parse::<i64>().ok()
-            };
+            let session_activity = parse_activity(parts[2]);
             Ok(RawSession {
                 session_name: parts[0].to_string(),
                 attached: parts[1] == "1",
@@ -109,7 +105,6 @@ mod tests {
 
     #[test]
     fn parse_windows_invalid_activity_becomes_none() {
-        // Mix: empty, valid, malformed
         let input = "s1\t0\tmain\t/home/user\t\ns1\t1\tedit\t/home/user\t1714000100\ns1\t2\tbad\t/home/user\tabc";
         let result = parse_windows(input).unwrap();
         assert_eq!(result.len(), 3);
